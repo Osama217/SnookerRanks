@@ -1,0 +1,30 @@
+package com.egr.snookerrank.dto;
+
+import com.fasterxml.jackson.annotation.JsonInclude;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.RequiredArgsConstructor;
+
+import java.math.BigDecimal;
+
+@Data
+@AllArgsConstructor
+@NoArgsConstructor
+@JsonInclude(JsonInclude.Include.NON_NULL)
+public class PlayerStats {
+    private Integer playerKey;
+    private String playerName;
+    private String countryName;
+    private Number stats;
+    private Number seventyBreaks ;
+    private Number framesPlayed ;
+
+
+    public PlayerStats( Integer playerKey, String playerName,String countryName,Number stats) {
+        this.stats = stats;
+        this.countryName = countryName;
+        this.playerName = playerName;
+        this.playerKey = playerKey;
+    }
+}

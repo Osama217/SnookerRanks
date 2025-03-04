@@ -1,11 +1,17 @@
 package com.egr.snookerrank.service;
 
 import com.egr.snookerrank.dto.*;
+import com.egr.snookerrank.model.RankText;
 import com.egr.snookerrank.repositroy.PlayerRepository;
+import com.egr.snookerrank.repositroy.RankTextRepository;
+import com.egr.snookerrank.repositroy.playerstats.PlayerStatsRepository;
 import com.egr.snookerrank.utils.CommonUtilities;
+import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.web.bind.annotation.RequestParam;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.sql.Timestamp;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -14,17 +20,15 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
+@AllArgsConstructor
 public class PlayerService {
     private final PlayerRepository playerRepository;
-
-    public PlayerService(PlayerRepository playerRepository) {
-        this.playerRepository = playerRepository;
-    }
+    private final PlayerStatsRepository playerStatsRepository;
+    private final RankTextRepository rankTextRepository;
 
     public List<TopPlayersDTO> getTopPlayers(@RequestParam int count) {
         int limit = (count > 0) ? count : 10;  // Default to 10 if count is invalid
         TopPlayersDTO dto = new TopPlayersDTO();
-        dto.getPlayerKey();
         return playerRepository.findTopPlayers(count)
                 .stream()
                 .map(obj -> {
@@ -70,7 +74,7 @@ public class PlayerService {
     }
 
     public StatsDTO getStats() {
-        StatsDTO statsDTO= null;
+        StatsDTO statsDTO = null;
         List<Object[]> result = playerRepository.fetchRanks();
         List<RanksDTO> ranksDTOList = result.stream().map(row -> new RanksDTO(
                 (Integer) row[0],
@@ -78,8 +82,45 @@ public class PlayerService {
         )).collect(Collectors.toList());
         List<TournamentDTO> tournamentDTOS = Arrays.asList(TournamentDTO.values());
         List<Integer> years = CommonUtilities.generateYearList();
-        statsDTO = new StatsDTO(ranksDTOList,tournamentDTOS,years);
-        return  statsDTO;
+        statsDTO = new StatsDTO(ranksDTOList, tournamentDTOS, years);
+        return statsDTO;
+
+    }
+
+    public List<PlayerStats> fetchPlayerStats(LocalDate dDateFrom, LocalDate dDateTo, Integer eventKey, TournamentDTO tournament, Integer year, Integer rankKey,Integer minMatches) {
+        List<Object[]> result = null;
+        if (rankKey.equals(50) || rankKey.equals(51) || rankKey.equals(52) || rankKey.equals(53) || rankKey.equals(54)) {
+            result = playerStatsRepository.findPlayersWithFilters(dDateFrom, dDateTo, eventKey, tournament, year, rankKey);
+
+        } else {
+           RankText rankText = rankTextRepository.findByRankTextKey(rankKey);
+           if (rankText != null &&  rankText.isMatchStat()) {
+                   result = playerStatsRepository.findPlayersWithStatsRankingFilters(rankText.getStatType(),rankText.getField1(),rankText.getField2(),
+                            tournament,year,eventKey, dDateFrom,dDateTo,minMatches,rankText.isOrderAsc(),500);
+           }
+        }
+        List<PlayerStats> ranksDTOList = result.stream().map(row -> {
+            if (row.length > 4) {
+                return new PlayerStats(
+                        (Integer) row[0],
+                        (String) row[1],
+                        (String) row[2],
+                        row.length > 5 && row[5] != null ?
+                                new BigDecimal(((Number) row[5]).doubleValue()).setScale(2, RoundingMode.HALF_UP)
+                                : null,
+                        (Number) row[3],
+                        (Number) row[4]
+                );
+            }else{
+                return new PlayerStats(
+                        (Integer) row[0],
+                        (String) row[1],
+                        (String) row[2],
+                        (Number) row[3]
+                );
+            }
+        }).collect(Collectors.toList());
+        return ranksDTOList;
 
     }
 }

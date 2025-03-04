@@ -5,6 +5,7 @@ import com.egr.snookerrank.service.PlayerService;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.time.LocalDate;
 
 @RestController
 @RequestMapping("/api/players")
@@ -37,4 +38,20 @@ public class PlayerController {
         StatsDTO statsDTO = playerService.getStats();
         return new ApiResponse<>("SUCCESS", "Data fetched successfully", statsDTO);
     }
+
+    @GetMapping("/getStats")
+    public  ApiResponse<List<PlayerStats>> getPlayers(
+            @RequestParam LocalDate dDateFrom,
+            @RequestParam LocalDate dDateTo,
+            @RequestParam Integer rankKey,
+            @RequestParam(required = false) Integer eventKey,
+            @RequestParam(required = false) TournamentDTO tournament,
+            @RequestParam(required = false) Integer year,
+            @RequestParam(required = false) Integer minMatches
+            ) {
+        List<PlayerStats> l1 = playerService.fetchPlayerStats(dDateFrom, dDateTo,eventKey,tournament,year,rankKey,minMatches);
+        return new ApiResponse<>("SUCCESS", "Data fetched successfully", l1);
+
+    }
+
 }
