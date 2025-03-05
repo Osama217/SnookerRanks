@@ -2,6 +2,12 @@ package com.egr.snookerrank.controller;
 
 import com.egr.snookerrank.dto.*;
 import com.egr.snookerrank.service.PlayerService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -9,6 +15,7 @@ import java.time.LocalDate;
 
 @RestController
 @RequestMapping("/api/players")
+@Tag(name = "Player APIs", description = "Endpoints for managing player data")
 public class PlayerController {
     private final PlayerService playerService;
 
@@ -16,31 +23,57 @@ public class PlayerController {
         this.playerService = playerService;
     }
 
-    @GetMapping("/top")
-    public ApiResponse<List<TopPlayersDTO>> getTopPlayers(@RequestParam int count) {
+    @Operation(
+            summary = "Get top players",
+            description = "Fetch top n number of players",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "User found"),
+            }
+    )
+    @GetMapping("/topPlayers")
+    public RestApiResponse<List<TopPlayersDTO>> getTopPlayers(@RequestParam int count) {
         int limit = (count > 0) ? count : 10;  // Default to 10 if count is invalid
         List<TopPlayersDTO> topPlayers = playerService.getTopPlayers(limit);
-        return new ApiResponse<>("SUCCESS", "Data fetched successfully", topPlayers);
+        return new RestApiResponse<>("SUCCESS", "Data fetched successfully", topPlayers);
     }
-
-    @GetMapping("/order-of-merit")
-    public ApiResponse<List<OrderOfMeritDTO>> getOrderOfMerit(
+    @Operation(
+            summary = "Order of Merit",
+            description = "Get Order of Merit",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "Order of Merit"),
+            }
+    )
+    @GetMapping("/orderOfMerit")
+    public RestApiResponse<List<OrderOfMeritDTO>> getOrderOfMerit(
             @RequestParam(defaultValue = "12") int monthsBack,
             @RequestParam(defaultValue = "10") int topCount,
             @RequestParam(required = false) List<Integer> excludedPlayers
     ) {
         List<OrderOfMeritDTO> orderOfMerits = playerService.getOrderOfMerit(monthsBack, topCount, excludedPlayers);
-        return new ApiResponse<>("SUCCESS", "Data fetched successfully", orderOfMerits);
+        return new RestApiResponse<>("SUCCESS", "Data fetched successfully", orderOfMerits);
     }
-
+    @Operation(
+            summary = "Stats Meta Data",
+            description = "Return Stats Meta Data that is fetched frm databse",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "Stats Meta Data"),
+            }
+    )
     @GetMapping("/getStatsMetaData")
-    public ApiResponse<StatsDTO> getStatsMetaData() {
+    public RestApiResponse<StatsDTO> getStatsMetaData() {
         StatsDTO statsDTO = playerService.getStats();
-        return new ApiResponse<>("SUCCESS", "Data fetched successfully", statsDTO);
+        return new RestApiResponse<>("SUCCESS", "Data fetched successfully", statsDTO);
     }
 
+    @Operation(
+            summary = "Stats",
+            description = "Return Complete Stats based on conditions",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "Stats Data"),
+            }
+    )
     @GetMapping("/getStats")
-    public  ApiResponse<List<PlayerStats>> getPlayers(
+    public RestApiResponse<List<PlayerStats>> getPlayers(
             @RequestParam LocalDate dDateFrom,
             @RequestParam LocalDate dDateTo,
             @RequestParam Integer rankKey,
@@ -50,7 +83,7 @@ public class PlayerController {
             @RequestParam(required = false) Integer minMatches
             ) {
         List<PlayerStats> l1 = playerService.fetchPlayerStats(dDateFrom, dDateTo,eventKey,tournament,year,rankKey,minMatches);
-        return new ApiResponse<>("SUCCESS", "Data fetched successfully", l1);
+        return new RestApiResponse<>("SUCCESS", "Data fetched successfully", l1);
 
     }
 
