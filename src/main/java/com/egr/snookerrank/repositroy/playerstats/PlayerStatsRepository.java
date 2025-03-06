@@ -25,5 +25,6 @@ public interface PlayerStatsRepository {
 
     List<Object[]> findPlayersWithFilters(LocalDate dDateFrom, LocalDate dDateTo, Integer eventKey, TournamentDTO tournament, Integer year, Integer rankKey);
     List<Object[]> findPlayersWithStatsRankingFilters(String statType, String field1, String field2,TournamentDTO tournament,Integer year, Integer eventKey,LocalDate dateFrom, LocalDate dateTo, Integer minMatches, Boolean orderAsc, Integer topLimit);
+    public PlayerStatsRepositoryImpl.MaxBreakStatsDTO getTotalMaxBreaks(Integer playerKey);
 
-}
+    }

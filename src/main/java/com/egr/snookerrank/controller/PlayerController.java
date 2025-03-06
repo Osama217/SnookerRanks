@@ -1,6 +1,7 @@
 package com.egr.snookerrank.controller;
 
 import com.egr.snookerrank.dto.*;
+import com.egr.snookerrank.dto.response.PlayerDetailsDTO;
 import com.egr.snookerrank.service.PlayerService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -85,6 +86,19 @@ public class PlayerController {
         List<PlayerStats> l1 = playerService.fetchPlayerStats(dDateFrom, dDateTo,eventKey,tournament,year,rankKey,minMatches);
         return new RestApiResponse<>("SUCCESS", "Data fetched successfully", l1);
 
+    }
+
+    @GetMapping("/searchPlayer")
+    public RestApiResponse<List<TopPlayersDTO>> searchPlayer(@RequestParam String name) {
+        List<TopPlayersDTO> players=playerService.searchPlayer(name);
+        return new RestApiResponse<>("SUCCESS", "Data fetched successfully", players);
+    }
+
+    @GetMapping("/playerDetails")
+    public  RestApiResponse<PlayerDetailsDTO> playerDetails(@RequestParam Integer key,
+                                                                     @RequestParam(defaultValue = "false") Boolean isRanking){
+        PlayerDetailsDTO playerDetails=  playerService.playerDetails(key, isRanking);
+        return new RestApiResponse<>("SUCCESS", "Data fetched successfully", playerDetails);
     }
 
 }

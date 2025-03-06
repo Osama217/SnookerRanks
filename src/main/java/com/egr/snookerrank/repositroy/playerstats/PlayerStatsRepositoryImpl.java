@@ -13,6 +13,8 @@ public class PlayerStatsRepositoryImpl implements PlayerStatsRepository {
     @PersistenceContext
     private EntityManager entityManager;
 
+    public record MaxBreakStatsDTO(Integer totalMaxBreaks, Integer totalCenturyBreaks) {}
+
     @Override
     public List<Object[]> findPlayersWithFilters(LocalDate dDateFrom, LocalDate dDateTo, Integer eventKey, TournamentDTO tournament, Integer year, Integer rankKey) {
         StringBuilder sql = new StringBuilder();
@@ -107,7 +109,6 @@ public class PlayerStatsRepositoryImpl implements PlayerStatsRepository {
 
         // Sorting
         sql.append(" ORDER BY ").append(mainStatField).append(orderAsc ? " ASC" : " DESC");
-        System.out.println(sql.toString());
         // Create Query
         Query query = entityManager.createNativeQuery(sql.toString());
 
@@ -142,4 +143,11 @@ public class PlayerStatsRepositoryImpl implements PlayerStatsRepository {
         return "D".equals(statType) || "A".equals(statType) || "P".equals(statType);
     }
 
+    public MaxBreakStatsDTO getTotalMaxBreaks(Integer playerKey) {
+        String sql = "SELECT COALESCE(SUM(max_breaks), 0),COALESCE(SUM(century_breaks), 0) FROM match_player_stats WHERE player_key = :playerKey";
+        Query query = entityManager.createNativeQuery(sql);
+        query.setParameter("playerKey", playerKey);
+        Object[] result = (Object[]) query.getSingleResult();
+        return  new MaxBreakStatsDTO(((Number) result[0]).intValue(), ((Number) result[1]).intValue());
+    }
 }

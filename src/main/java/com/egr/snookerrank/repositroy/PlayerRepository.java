@@ -1,6 +1,7 @@
 package com.egr.snookerrank.repositroy;
 
 import com.egr.snookerrank.model.Player;
+import com.egr.snookerrank.beans.PlayerPrizeStats;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -10,6 +11,10 @@ import java.util.List;
 
 @Repository
 public interface PlayerRepository extends JpaRepository<Player, Integer> {
+
+    Player findByPlayerKey(Integer playerKey);
+
+
     @Query(value = "SELECT TOP(:count) player_key,player_name,country_name,fdi FROM player WHERE fdi_matches > 20 ORDER BY fdi DESC", nativeQuery = true)
     List<Object[]> findTopPlayers(@Param("count") int count);
 
@@ -49,5 +54,22 @@ public interface PlayerRepository extends JpaRepository<Player, Integer> {
 
     @Query(value = "SELECT rank_text_key,rank_name FROM rank_text WHERE is_ranking=0 ORDER BY order_num", nativeQuery = true)
     List<Object[]> fetchRanks();
+
+    @Query("SELECT p FROM Player p WHERE LOWER(p.playerName) LIKE LOWER(CONCAT('%', :searchString, '%')) ORDER BY p.fdi DESC")
+    List<Player> findByPlayerNameContainingOrderByFdiDesc(@Param("searchString") String searchString);
+
+    @Query(value = "SELECT YEAR(e.event_date) AS yearActive, " +
+            "SUM(pp.prize_money) AS totalPrizeMoney, " +
+            "COUNT(CASE WHEN pp.round_no = 21 THEN 1 END) AS titlesWon, " +
+            "SUM(pp.prize_money) / COUNT(*) AS prizePerEvent " +
+            "FROM player_prize pp " +
+            "JOIN event e ON pp.event_key = e.event_key " +
+            "WHERE pp.player_key = :playerKey " +
+            "AND (:rankingOnly != 'Y' OR (e.event_category <> 'U' AND e.event_category <> '0')) " +
+            "GROUP BY YEAR(e.event_date) " +
+            "ORDER BY yearActive",
+            nativeQuery = true)
+    List<PlayerPrizeStats> findPlayerPrizeStatistics(@Param("playerKey") Integer playerKey,
+                                                     @Param("rankingOnly") String rankingOnly);
 
 }
