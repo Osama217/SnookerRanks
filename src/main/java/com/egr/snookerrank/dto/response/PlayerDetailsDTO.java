@@ -2,6 +2,7 @@ package com.egr.snookerrank.dto.response;
 
 import com.egr.snookerrank.dto.PlayerDTO;
 import com.egr.snookerrank.dto.PlayerPrizeStatsDTO;
+import com.egr.snookerrank.dto.PlayerTournamentDTO;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -16,5 +17,7 @@ import java.util.List;
 public class PlayerDetailsDTO {
     PlayerDTO player;
     List<PlayerPrizeStatsDTO> prizeStats;
+    List<PlayerTournamentDTO> bestMajorResults;
+
 
 }

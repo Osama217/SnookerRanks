@@ -1,5 +1,6 @@
 package com.egr.snookerrank.repositroy;
 
+import com.egr.snookerrank.dto.PlayerTournamentDTO;
 import com.egr.snookerrank.model.Player;
 import com.egr.snookerrank.beans.PlayerPrizeStats;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -72,4 +73,31 @@ public interface PlayerRepository extends JpaRepository<Player, Integer> {
     List<PlayerPrizeStats> findPlayerPrizeStatistics(@Param("playerKey") Integer playerKey,
                                                      @Param("rankingOnly") String rankingOnly);
 
+    @Query(value = "SELECT t.tournament_key AS tournamentKey, " +
+            "t.tournament_name AS tournamentName, " +
+            "t.prestige AS prestige, " +
+            "(SELECT round_no FROM round WHERE order_num = MAX(ppr.order_num)) AS roundNo, " +
+            "(SELECT round_name FROM round WHERE order_num = MAX(ppr.order_num)) AS roundName " +
+            "FROM player_prize pp " +
+            "JOIN event e ON pp.event_key = e.event_key " +
+            "JOIN tournament t ON e.tournament_key = t.tournament_key " +
+            "JOIN round ppr ON pp.round_no = ppr.round_no " +
+            "WHERE pp.player_key = :playerKey AND t.prestige <> 0 " +
+            "GROUP BY t.tournament_key, t.tournament_name, t.prestige " +
+            "ORDER BY t.prestige DESC, t.tournament_name",
+            nativeQuery = true)
+    List<PlayerTournamentDTO> findTournamentsByPlayer(@Param("playerKey") Integer playerKey);
+
+    @Query(value = "SELECT Year(e.event_date) " +
+            "FROM player_prize pp " +
+            "JOIN event e ON pp.event_key = e.event_key " +
+            "JOIN tournament t ON e.tournament_key = t.tournament_key " +
+            "WHERE pp.player_key = :playerKey " +
+            "AND t.tournament_key = :tournamentKey " +
+            "AND pp.round_no = :roundNo " +
+            "ORDER BY e.event_date",
+            nativeQuery = true)
+    List<Integer> findEventDates(@Param("playerKey") Integer playerKey,
+                                       @Param("tournamentKey") Integer tournamentKey,
+                                       @Param("roundNo") Integer roundNo);
 }

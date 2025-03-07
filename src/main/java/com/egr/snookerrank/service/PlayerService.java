@@ -161,6 +161,19 @@ public class PlayerService {
         if (player != null) {
 
             playerDetails.setPlayer(mapPlayerDetails(player));
+            //
+            List<PlayerTournamentDTO> playerTournamnetsList = playerRepository.findTournamentsByPlayer(key);
+            if(null != playerTournamnetsList && !playerTournamnetsList.isEmpty()){
+                for(PlayerTournamentDTO playerTournamentDTO : playerTournamnetsList){
+                    if(!playerTournamentDTO.getTournamentName().isEmpty()){
+                      List<Integer> years =  playerRepository.findEventDates(key,playerTournamentDTO.getTournamentKey(),playerTournamentDTO.getRoundNo());
+                      playerTournamentDTO.setYears(years);
+                    }
+                }
+                playerDetails.setBestMajorResults(playerTournamnetsList);
+            }
+
+
             //Going to fetch detials of Earns
             String filter = isRanking ? "Y" : "N";
             List<PlayerPrizeStats> playerPrizeStats = playerRepository.findPlayerPrizeStatistics(key, filter);
@@ -192,7 +205,6 @@ public class PlayerService {
             playerDTO.setBiogPictureLink(StringEscapeUtils.unescapeHtml4(player.getBiogPictureLink()));
         }
 
-        //todo
         PlayerStatsRepositoryImpl.MaxBreakStatsDTO stats =playerStatsRepository.getTotalMaxBreaks(playerDTO.getPlayerKey());
         playerDTO.setCareer147s(stats.totalMaxBreaks());
         playerDTO.setCareerCenturies(stats.totalCenturyBreaks());
