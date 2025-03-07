@@ -1,11 +1,12 @@
 package com.egr.snookerrank.controller;
 
+import com.egr.snookerrank.beans.TournamnetStatsOption;
 import com.egr.snookerrank.dto.*;
+import com.egr.snookerrank.dto.response.PlayerAdditionalDetailsDTO;
 import com.egr.snookerrank.dto.response.PlayerDetailsDTO;
+import com.egr.snookerrank.dto.response.TournamentStatsDTO;
 import com.egr.snookerrank.service.PlayerService;
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.media.Content;
-import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 
@@ -18,6 +19,7 @@ import java.time.LocalDate;
 @RequestMapping("/api/players")
 @Tag(name = "Player APIs", description = "Endpoints for managing player data")
 public class PlayerController {
+
     private final PlayerService playerService;
 
     public PlayerController(PlayerService playerService) {
@@ -88,17 +90,63 @@ public class PlayerController {
 
     }
 
+    @Operation(
+            summary = "search player",
+            description = "Search any player based on name",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "Player found"),
+            }
+    )
     @GetMapping("/searchPlayer")
     public RestApiResponse<List<TopPlayersDTO>> searchPlayer(@RequestParam String name) {
         List<TopPlayersDTO> players=playerService.searchPlayer(name);
         return new RestApiResponse<>("SUCCESS", "Data fetched successfully", players);
     }
 
+    @Operation(
+            summary = "get player details",
+            description = "Get Player details, Best major results, Other wins and Earns based on player key ",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "Player found"),
+            }
+    )
     @GetMapping("/playerDetails")
     public  RestApiResponse<PlayerDetailsDTO> playerDetails(@RequestParam Integer key,
                                                                      @RequestParam(defaultValue = "false") Boolean isRanking){
         PlayerDetailsDTO playerDetails=  playerService.playerDetails(key, isRanking);
         return new RestApiResponse<>("SUCCESS", "Data fetched successfully", playerDetails);
+    }
+
+
+    @Operation(
+            summary = "Annual Win Loss",
+            description = "Get Annual Win Loss based on player key",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "Player found"),
+            }
+    )
+    @GetMapping("/annualWinLoss")
+    public  RestApiResponse<PlayerAdditionalDetailsDTO> annualWinLoss(@RequestParam Integer key){
+        PlayerAdditionalDetailsDTO playerAddDetails=  playerService.annualWinLoss(key);
+        return new RestApiResponse<>("SUCCESS", "Data fetched successfully", playerAddDetails);
+    }
+
+
+    @Operation(
+            summary = "Tournament Stats",
+            description = "Get Tournament Stats based on player key",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "Player found"),
+            }
+    )
+    @GetMapping("/tournamentStats")
+    public RestApiResponse<TournamentStatsDTO> tournamentStats(@RequestParam TournamnetStatsOption tournamnetStatsOption,
+                                                   @RequestParam Integer playerKey
+                                                   )
+    {
+        TournamentStatsDTO tournamentStats = playerService.getTournamentStats(tournamnetStatsOption,playerKey);
+        return new RestApiResponse<>("SUCCESS", "Data fetched successfully", tournamentStats);
+
     }
 
 }

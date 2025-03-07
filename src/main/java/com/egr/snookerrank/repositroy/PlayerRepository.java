@@ -1,6 +1,10 @@
 package com.egr.snookerrank.repositroy;
 
+import com.egr.snookerrank.beans.AnnualWinLoss;
+import com.egr.snookerrank.dto.PlayerMatchTournamentDTO;
+import com.egr.snookerrank.dto.PlayerPrizeTournamentDTO;
 import com.egr.snookerrank.dto.PlayerTournamentDTO;
+import com.egr.snookerrank.dto.TournamentEventDTO;
 import com.egr.snookerrank.model.Player;
 import com.egr.snookerrank.beans.PlayerPrizeStats;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -8,6 +12,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.sql.Date;
 import java.util.List;
 
 @Repository
@@ -100,4 +105,80 @@ public interface PlayerRepository extends JpaRepository<Player, Integer> {
     List<Integer> findEventDates(@Param("playerKey") Integer playerKey,
                                        @Param("tournamentKey") Integer tournamentKey,
                                        @Param("roundNo") Integer roundNo);
+
+    @Query(value = "SELECT t.tournament_key AS tournamentKey, " +
+            "t.tournament_name AS tournamentName, " +
+            "Year(e.event_date) AS eventDate " +
+            "FROM player_prize pp " +
+            "JOIN event e ON pp.event_key = e.event_key " +
+            "JOIN tournament t ON e.tournament_key = t.tournament_key " +
+            "WHERE pp.player_key = :playerKey " +
+            "AND t.prestige = 0 " +
+            "AND pp.round_no = 21 " +
+            "ORDER BY t.tournament_name, e.event_date",
+            nativeQuery = true)
+    List<TournamentEventDTO> findTournamentEvents(@Param("playerKey") Integer playerKey);
+
+    @Query(value = "SELECT YEAR(m.match_date) AS year, " +
+            "SUM(CASE WHEN m.winner_key = :playerKey THEN 1 ELSE 0 END) AS wins, " +
+            "SUM(CASE WHEN m.loser_key = :playerKey THEN 1 ELSE 0 END) AS losses, " +
+            "SUM(CASE WHEN m.winner_key = :playerKey THEN m.winner_score ELSE m.loser_score END) AS legsWon, " +
+            "SUM(CASE WHEN m.winner_key = :playerKey THEN m.loser_score ELSE m.winner_score END) AS legsLost, " +
+            "COUNT(*) AS matches " +
+            "FROM match m " +
+            "WHERE (m.winner_key = :playerKey OR m.loser_key = :playerKey) " +
+            "AND (m.winner_score = 0 OR m.winner_score > m.loser_score) " +
+            "GROUP BY YEAR(m.match_date) " +
+            "ORDER BY YEAR(m.match_date)",
+            nativeQuery = true)
+    List<AnnualWinLoss> getAnnualWinLossRecords(@Param("playerKey") Integer playerKey);
+
+
+    @Query(value = "SELECT " +
+            "t.tournament_key AS tournamentKey, " +
+            "e.event_key AS eventKey, " +
+            "t.tournament_name AS tournamentName, " +
+            "e.tournament_no AS tournamentNo, " +
+            "CAST(e.event_date As DATE)AS eventDate, " +
+            "e.event_category AS eventCategory, " +
+            "pp.prize_money AS prizeMoney, " +
+            "r.round_name AS roundName, " +
+            "full_prizes AS fullPrizes, " +
+            "e.currency_code AS currencyCode " +
+            "FROM player_prize pp " +
+            "JOIN event e ON pp.event_key = e.event_key " +
+            "JOIN tournament t ON e.tournament_key = t.tournament_key " +
+            "JOIN round r ON pp.round_no = r.round_no " +
+            "WHERE pp.player_key = :playerKey " +
+            "ORDER BY e.event_date DESC, e.tournament_no DESC",
+            nativeQuery = true)
+    List<PlayerPrizeTournamentDTO> findPlayerPrizes(@Param("playerKey") Integer playerKey);
+
+
+    @Query(value = "SELECT " +
+            "t.tournament_key AS tournamentKey, " +
+            "e.event_key AS eventKey, " +
+            "t.tournament_name AS tournamentName, " +
+            "e.tournament_no AS tournamentNo, " +
+            "CAST(m.match_date AS DATE)AS matchDate, " +
+            "e.event_category AS eventCategory, " +
+            "r.round_name AS roundName, " +
+            "m.winner_key AS winnerKey, " +
+            "m.loser_key AS loserKey, " +
+            "w.player_name AS winnerName, " +
+            "l.player_name AS loserName, " +
+            "m.winner_score AS winnerScore, " +
+            "m.loser_score AS loserScore, " +
+            "m.is_bye AS isBye " +
+            "FROM match m " +
+            "JOIN event e ON m.event_key = e.event_key " +
+            "JOIN tournament t ON e.tournament_key = t.tournament_key " +
+            "JOIN round r ON m.round_no = r.round_no " +
+            "JOIN player w ON m.winner_key = w.player_key " +
+            "JOIN player l ON m.loser_key = l.player_key " +
+            "WHERE (m.winner_key = :playerKey OR m.loser_key = :playerKey) " +
+            "ORDER BY m.match_date DESC, e.tournament_no DESC, e.event_key DESC, r.order_num DESC, m.match_key DESC",
+            nativeQuery = true)
+    List<PlayerMatchTournamentDTO> findMatchesByPlayer(@Param("playerKey") Integer playerKey);
+
 }
