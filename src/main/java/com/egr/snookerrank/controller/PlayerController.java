@@ -2,9 +2,7 @@ package com.egr.snookerrank.controller;
 
 import com.egr.snookerrank.beans.TournamnetStatsOption;
 import com.egr.snookerrank.dto.*;
-import com.egr.snookerrank.dto.response.PlayerAdditionalDetailsDTO;
-import com.egr.snookerrank.dto.response.PlayerDetailsDTO;
-import com.egr.snookerrank.dto.response.TournamentStatsDTO;
+import com.egr.snookerrank.dto.response.*;
 import com.egr.snookerrank.service.PlayerService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -147,6 +145,36 @@ public class PlayerController {
         TournamentStatsDTO tournamentStats = playerService.getTournamentStats(tournamnetStatsOption,playerKey);
         return new RestApiResponse<>("SUCCESS", "Data fetched successfully", tournamentStats);
 
+    }
+
+    @GetMapping("/tournamnetDetails")
+    public  RestApiResponse<List<MatchResultDTO>> tournamentDetails(@RequestParam Integer tournamentKey){
+       List<MatchResultDTO> result = playerService.getTOurnamentDetals(tournamentKey);
+        return new RestApiResponse<>("SUCCESS", "Data fetched successfully", result);
+
+    }
+    @GetMapping("/eventResults")
+    public RestApiResponse<EventResultsDTO> eventResults(@RequestParam Integer eventKey){
+        EventResultsDTO eventResults = playerService.getEventResults(eventKey);
+        return new RestApiResponse<>("SUCCESS", "Data fetched successfully", eventResults);
+    }
+
+    @GetMapping("/eventList")
+    public RestApiResponse<List<EventListDTO>> eventList(@RequestParam Integer year){
+        List<EventListDTO> eventList = playerService.getEventList(year);
+        return new RestApiResponse<>("SUCCESS", "Data fetched successfully", eventList);
+
+    }
+
+    @GetMapping("/eventPrizeFund")
+    public RestApiResponse<EventResultsDTO> eventPrizeFund(@RequestParam Integer eventKey){
+        EventResultsDTO eventREsult = playerService.getEventPrizeFund(eventKey);
+        return new RestApiResponse<>("SUCCESS", "Data fetched successfully", eventREsult);
+    }
+    @GetMapping("/tournamentStatsSummary")
+    public RestApiResponse<List<TournamnetStatsSummaryDTO>> tournamentStatsSummary(@RequestParam Integer tournamentKey){
+        List<TournamnetStatsSummaryDTO> tournamentstats =  playerService.tournamentStatsSummary(tournamentKey);
+        return new RestApiResponse<>("SUCCESS", "Data fetched successfully", tournamentstats);
     }
 
 }

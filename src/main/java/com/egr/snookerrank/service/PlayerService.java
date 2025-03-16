@@ -1,14 +1,11 @@
 package com.egr.snookerrank.service;
 
-import com.egr.snookerrank.beans.AnnualWinLoss;
-import com.egr.snookerrank.beans.TournamnetStatsOption;
+import com.egr.snookerrank.beans.*;
 import com.egr.snookerrank.dto.*;
-import com.egr.snookerrank.dto.response.PlayerAdditionalDetailsDTO;
-import com.egr.snookerrank.dto.response.PlayerDetailsDTO;
-import com.egr.snookerrank.dto.response.TournamentStatsDTO;
+import com.egr.snookerrank.dto.response.*;
 import com.egr.snookerrank.model.Player;
-import com.egr.snookerrank.beans.PlayerPrizeStats;
 import com.egr.snookerrank.model.RankText;
+import com.egr.snookerrank.model.TournamnetStats;
 import com.egr.snookerrank.repositroy.PlayerRepository;
 import com.egr.snookerrank.repositroy.RankTextRepository;
 import com.egr.snookerrank.repositroy.playerstats.PlayerStatsRepository;
@@ -22,14 +19,12 @@ import org.springframework.web.bind.annotation.RequestParam;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.sql.Date;
 import java.sql.Timestamp;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
@@ -191,7 +186,7 @@ public class PlayerService {
                 for (PlayerPrizeStats prizeStats : playerPrizeStats) {
                     PlayerPrizeStatsDTO dto = new PlayerPrizeStatsDTO();
                     BeanUtils.copyProperties(prizeStats, dto);
-                    if(null != dto.getPrizePerEvent()){
+                    if (null != dto.getPrizePerEvent()) {
                         dto.setPrizePerEvent(BigDecimal.valueOf(dto.getPrizePerEvent().doubleValue())
                                 .setScale(2, RoundingMode.HALF_UP));
                     }
@@ -229,40 +224,40 @@ public class PlayerService {
         String formattedPercentage = "100%";
         PlayerAdditionalDetailsDTO playerAdditionalDetailsDTO = new PlayerAdditionalDetailsDTO();
         Player player = playerRepository.findByPlayerKey(key);
-        if(player != null){
-          List<AnnualWinLoss> annualWinLossList = playerRepository.getAnnualWinLossRecords(key);
-          if(!annualWinLossList.isEmpty()){
-              List<AnnualWinLossDTO> annualWinLossDTOList = new ArrayList<>();
-              for(AnnualWinLoss annualWinLoss : annualWinLossList){
-                  if(null != annualWinLoss.getLosses() && annualWinLoss.getLosses() != 0) {
-                      double percentage = ((double) annualWinLoss.getWins() / annualWinLoss.getMatches()) * 100;
-                      formattedPercentage = String.format("%.2f", percentage) +"%";
-                  }
-                  AnnualWinLossDTO dto = AnnualWinLossDTO.builder()
-                          .year(annualWinLoss.getYear())
-                          .winsByLosses(annualWinLoss.getWins() + "/" + annualWinLoss.getLosses())
-                          .legsWonByLegsLost(annualWinLoss.getLegsWon() + "/" + annualWinLoss.getLegsLost())
-                          .winByLossPercentage(formattedPercentage)
-                          .build();
-                  annualWinLossDTOList.add(dto);
-              }
-              playerAdditionalDetailsDTO.setAnnualWinLoss(annualWinLossDTOList);
-          }
+        if (player != null) {
+            List<AnnualWinLoss> annualWinLossList = playerRepository.getAnnualWinLossRecords(key);
+            if (!annualWinLossList.isEmpty()) {
+                List<AnnualWinLossDTO> annualWinLossDTOList = new ArrayList<>();
+                for (AnnualWinLoss annualWinLoss : annualWinLossList) {
+                    if (null != annualWinLoss.getLosses() && annualWinLoss.getLosses() != 0) {
+                        double percentage = ((double) annualWinLoss.getWins() / annualWinLoss.getMatches()) * 100;
+                        formattedPercentage = String.format("%.2f", percentage) + "%";
+                    }
+                    AnnualWinLossDTO dto = AnnualWinLossDTO.builder()
+                            .year(annualWinLoss.getYear())
+                            .winsByLosses(annualWinLoss.getWins() + "/" + annualWinLoss.getLosses())
+                            .legsWonByLegsLost(annualWinLoss.getLegsWon() + "/" + annualWinLoss.getLegsLost())
+                            .winByLossPercentage(formattedPercentage)
+                            .build();
+                    annualWinLossDTOList.add(dto);
+                }
+                playerAdditionalDetailsDTO.setAnnualWinLoss(annualWinLossDTOList);
+            }
 
-        }else{
-            throw  new RuntimeException("Player not found with this key");
+        } else {
+            throw new RuntimeException("Player not found with this key");
         }
         return playerAdditionalDetailsDTO;
     }
 
-    public TournamentStatsDTO getTournamentStats(TournamnetStatsOption tournamnetStatsOption,Integer key) {
+    public TournamentStatsDTO getTournamentStats(TournamnetStatsOption tournamnetStatsOption, Integer key) {
         TournamentStatsDTO tournamentStatsDTO = new TournamentStatsDTO();
-        if(TournamnetStatsOption.RESULTS.equals(tournamnetStatsOption)){
+        if (TournamnetStatsOption.RESULTS.equals(tournamnetStatsOption)) {
             List<PlayerMatchTournamentDTO> matchPrize = playerRepository.findMatchesByPlayer(key);
-            if(!matchPrize.isEmpty()){
+            if (!matchPrize.isEmpty()) {
                 matchPrize.forEach(match -> {
                             match.setScore(match.getLoserScore() + " V " + match.getWinnerScore());
-                            if(match.getWinnerKey().equals(key))
+                            if (match.getWinnerKey().equals(key))
                                 match.setResult("Won");
                             else
                                 match.setResult("Lost");
@@ -270,11 +265,140 @@ public class PlayerService {
                 );
             }
             tournamentStatsDTO.setMatches(matchPrize);
-        }else if (TournamnetStatsOption.PRIZE.equals(tournamnetStatsOption)){
+        } else if (TournamnetStatsOption.PRIZE.equals(tournamnetStatsOption)) {
             List<PlayerPrizeTournamentDTO> playerPrize = playerRepository.findPlayerPrizes(key);
             tournamentStatsDTO.setPrizes(playerPrize);
 
         }
-    return tournamentStatsDTO;
+        return tournamentStatsDTO;
+    }
+
+    public EventResultsDTO getEventResults(Integer eventKey) {
+        String tournamnetName = null, eventYear, tournamnetKey, venue, tournamentCompleteName = "";
+        Integer tvChannel;
+        Boolean hasSeed;
+        List<PrizeFundsDTO> prizeFundsDTOList = null;
+        Object[] eventDetail = null;
+        List<Object[]> eventDetails = playerRepository.getEventTitle(eventKey);
+        if (null != eventDetails && !eventDetails.isEmpty()) {
+            eventDetail = eventDetails.getFirst();
+            tournamnetName = (String) eventDetail[0];
+            eventYear = String.valueOf(eventDetail[1]);
+            hasSeed = (Boolean) eventDetail[2];
+            tournamnetKey = String.valueOf(eventDetail[3]);
+            tvChannel = (Integer) eventDetail[4];
+            venue = (String) eventDetail[5];
+            tournamentCompleteName = eventYear + " " + tournamnetName + " Results";
+        }
+        List<MatchResults> matchResults = playerRepository.getMatchResult(eventKey);
+        List<PrizeFund> prizeFunds = playerRepository.getPrizeFunds(eventKey);
+        if (null != matchResults && null != prizeFunds) {
+            prizeFundsDTOList = prizeFunds.stream()
+                    .map(prize -> new PrizeFundsDTO(
+                            prize.getRoundName(),
+                            prize.getRoundNo(),
+                            prize.getPrizeMoney(),
+                            prize.getNumberOfMatches(),
+                            prize.getCountryName(),
+                            prize.getIsLeague(),
+                            prize.getIsGroup(),
+                            matchResults.stream()
+                                    .filter(match -> match.getRoundNo().equals(prize.getRoundNo())) // Match roundNo
+                                    .collect(Collectors.toList()) // Collect matched results
+                    ))
+                    .collect(Collectors.toList());
+        }
+        return new EventResultsDTO(tournamentCompleteName, prizeFundsDTOList);
+
+
+    }
+
+    public List<EventListDTO> getEventList(Integer year) {
+        List<EventListDTO> eventList = playerRepository.getEventList(year);
+        return eventList;
+    }
+
+    public EventResultsDTO getEventPrizeFund(Integer eventKey) {
+        String tournamnetName = null, eventYear, tournamentCompleteName = "";
+        Object[] eventDetail = null;
+        List<Object[]> eventDetails = playerRepository.getEventTitle(eventKey);
+        if (null != eventDetails && !eventDetails.isEmpty()) {
+            eventDetail = eventDetails.getFirst();
+            tournamnetName = (String) eventDetail[0];
+            eventYear = String.valueOf(eventDetail[1]);
+            tournamentCompleteName = eventYear + " " + tournamnetName + " Results";
+        }
+        List<PrizeFundsDTO> list = playerRepository.getEventPrizeFund(eventKey);
+        return new EventResultsDTO(tournamentCompleteName, list);
+
+    }
+
+    public List<MatchResultDTO> getTOurnamentDetals(Integer tournamentKey) {
+        List<MatchResultDTO> result = playerRepository.getTournamentDetails(tournamentKey);
+        result.forEach(match -> {
+            match.setScore(match.getWinnerScore() + " V " + match.getLoserScore());
+        });
+        return result;
+
+    }
+
+    public List<TournamnetStatsSummaryDTO> tournamentStatsSummary(Integer tournamentKey) {
+        LinkedHashMap<String, TournamnetStatsSummaryDTO> statMap = new LinkedHashMap<>();
+        Map<String,Integer> highest = new LinkedHashMap<>();
+        String name = playerRepository.getTournamentName(tournamentKey);
+        if (null != name && !name.isEmpty()) {
+            name = name + " Records";
+            List<TournamnetStats> stats = playerRepository.getMostWins(tournamentKey);
+            stats.addAll(playerRepository.getMostFinals(tournamentKey));
+            stats.addAll(playerRepository.getMostSemis(tournamentKey));
+            stats.addAll(playerRepository.getMostQuaters(tournamentKey));
+            stats.addAll(playerRepository.getMostAppearances(tournamentKey));
+            stats.addAll(playerRepository.getYoungestWinner(tournamentKey));
+            stats.addAll(playerRepository.getOldestWinner(tournamentKey));
+            stats.addAll(playerRepository.getMostCenturyinTour(tournamentKey));
+            stats.addAll(playerRepository.getMostCenturyinMatch(tournamentKey));
+            stats.forEach(stat->{
+                highest.putIfAbsent(stat.getRoundLabel(),0);
+                Integer max = highest.get(stat.getRoundLabel());
+                if(stat.getCount()>max){
+                    highest.put(stat.getRoundLabel(),stat.getCount());
+                }
+            });
+
+
+            stats.forEach(
+                    stat -> {
+                        statMap.putIfAbsent(stat.getRoundLabel(), new TournamnetStatsSummaryDTO(stat.getRoundLabel(), ""));
+                        TournamnetStatsSummaryDTO statsDTO = statMap.get(stat.getRoundLabel());
+                        Integer max = highest.get(stat.getRoundLabel());
+                        switch (stat.getRoundLabel()) {
+                            case "Most Wins", "Most Finals", "Most Quarter Finals", "Most Semi Finals"
+                                 ,"Most Appearances", "Most Century Breaks in a Match" -> {
+                                if(Objects.equals(stat.getCount(), max)) {
+                                    if (statsDTO.getAmount().isEmpty()) {
+                                        statsDTO.setAmount(stat.getCount() + " by " + stat.getPlayerName());
+                                    } else {
+                                        statsDTO.setAmount(statsDTO.getAmount() + " , " + stat.getPlayerName());
+                                    }
+                                }
+                            }
+                            case "Most Century Breaks in a Tournament" ->{
+                                if(Objects.equals(stat.getCount(), max)) {
+                                    if (statsDTO.getAmount().isEmpty()) {
+                                        statsDTO.setAmount(stat.getCount() + " by " + stat.getPlayerName() + " ("+stat.getYear() +" )") ;
+                                    } else {
+                                        statsDTO.setAmount(statsDTO.getAmount() + " , " + stat.getPlayerName() + " ("+stat.getYear() +" )");
+                                    }
+                                }
+                            }
+                            case "Youngest Winner", "Oldest Winner" -> {
+                                statsDTO.setAmount(stat.getPlayerName() + " age " + stat.getCount());
+                            }
+                        }
+
+                    }
+            );
+        }
+        return new ArrayList<>(statMap.values());
     }
 }

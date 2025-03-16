@@ -45,4 +45,6 @@ public class PlayerMatchTournamentDTO {
         this.loserScore = loserScore;
         this.isBye = isBye;
     }
+
+
 }
