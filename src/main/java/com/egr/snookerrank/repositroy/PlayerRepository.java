@@ -5,6 +5,7 @@ import com.egr.snookerrank.beans.MatchResults;
 import com.egr.snookerrank.beans.PrizeFund;
 import com.egr.snookerrank.dto.*;
 import com.egr.snookerrank.dto.response.EventListDTO;
+import com.egr.snookerrank.dto.MatchResultsWithOrder;
 import com.egr.snookerrank.model.Player;
 import com.egr.snookerrank.beans.PlayerPrizeStats;
 import com.egr.snookerrank.model.TournamnetStats;
@@ -13,13 +14,13 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import java.sql.Date;
 import java.util.List;
 
 @Repository
 public interface PlayerRepository extends JpaRepository<Player, Integer> {
 
     Player findByPlayerKey(Integer playerKey);
+    List<Player> findAll();
 
 
     @Query(value = "SELECT TOP(:count) player_key,player_name,country_name,fdi FROM player WHERE fdi_matches > 20 ORDER BY fdi DESC", nativeQuery = true)
@@ -314,5 +315,61 @@ public interface PlayerRepository extends JpaRepository<Player, Integer> {
             nativeQuery = true)
     List<TournamnetStats> getMostCenturyinMatch(@Param("tournamentKey") Integer tournamentKey);
 
+
+
+    String winner = "(SELECT COUNT(*) FROM match WHERE winner_key=:playerId AND loser_key=p.player_key AND is_bye=0 AND (winner_score > loser_score OR winner_score = 0))";
+    String loser = "(SELECT COUNT(*) FROM match WHERE loser_key=:playerId AND winner_key=p.player_key AND is_bye=0 AND (winner_score > loser_score OR winner_score = 0))";
+    String draw = "(SELECT COUNT(*) FROM match WHERE ((winner_key = :playerId AND loser_key = p.player_key) OR (loser_key = :playerId AND winner_key = p.player_key)) AND is_bye = 0 AND winner_score = loser_score AND winner_score > 0)";
+
+    // Final query with proper casting and calculation of percentage
+    String finalQuery =
+            "SELECT player_key as playerKey, player_name as playerName, "
+                    + winner + " AS wins, "
+                    + draw + " AS draw, "
+                    + loser + " AS losses, "
+                    + "(CAST(" + winner + " AS float) + CAST(" + draw + " AS float) * 0.5) / "
+                    + "(CAST(" + winner + " AS float) + CAST(" + draw + " AS float) + CAST(" + loser + " AS float)) *100 AS pcnt "
+                    + "FROM player p "
+                    + "WHERE (" + winner + " + " + loser + ") >= 2 "
+                    + "ORDER BY pcnt ASC, losses DESC, wins ASC";
+
+    @Query(value = finalQuery, nativeQuery = true)
+    List<PlayerH2HStatsDTO> getCompleteH2HList(@Param("playerId") Integer playerId);
+
+    @Query(value="SELECT * FROM player WHERE player_key IN (SELECT player_key FROM player_pro_card WHERE year=2024) AND NOT fdi IS NULL ORDER BY surname,player_name", nativeQuery = true)
+    List<Player> findAllH2HPlayers();
+
+    @Query(value = "SELECT t.tournament_key, e.event_key, t.tournament_name, e.event_date, e.event_category, r.round_name, m.winner_key, m.loser_key, w.player_name AS winner_name, l.player_name AS loser_name, m.winner_score, m.loser_score " +
+            "FROM match m " +
+            "JOIN event e ON m.event_key = e.event_key " +
+            "JOIN tournament t ON e.tournament_key = t.tournament_key " +
+            "JOIN round r ON m.round_no = r.round_no " +
+            "JOIN player w ON m.winner_key = w.player_key " +
+            "JOIN player l ON m.loser_key = l.player_key " +
+            "WHERE m.is_bye = 0 " +
+            "AND ((m.winner_key = :player1 AND m.loser_key = :player2) OR (m.winner_key = :player2 AND m.loser_key = :player1))",
+            nativeQuery = true)
+    List<Object[]> findMatchStats(@Param("player1") Integer player1, @Param("player2") Integer player2);
+
+    @Query(value = "SELECT t.tournament_key as tournamnetKey, " +
+            "e.event_key as eventKey," +
+            " t.tournament_name as tournamnetName," +
+            " CAST(e.event_date As DATE)AS eventDate," +
+            " e.event_category eventCategory," +
+            " r.round_name roundName," +
+            " m.winner_key winnerKey, " +
+            " m.loser_key loserKey" +
+            ", w.player_name AS winnerName, l.player_name AS loserName, m.winner_score winnerScore, m.loser_score loserScore" +
+            " FROM match m " +
+            "JOIN event e ON m.event_key = e.event_key " +
+            "JOIN tournament t ON e.tournament_key = t.tournament_key " +
+            "JOIN round r ON m.round_no = r.round_no " +
+            "JOIN player w ON m.winner_key = w.player_key " +
+            "JOIN player l ON m.loser_key = l.player_key " +
+            "WHERE m.is_bye = 0 " +
+            "AND ((m.winner_key = :player1 AND m.loser_key = :player2) OR (m.winner_key = :player2 AND m.loser_key = :player1))" +
+            " ORDER BY m.match_date DESC,e.event_date DESC,r.round_no DESC,m.match_key DESC",
+            nativeQuery = true)
+    List<MatchResultsWithOrder> findMatchStatsWithOrder(@Param("player1") Integer player1, @Param("player2") Integer player2);
 
 }

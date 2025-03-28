@@ -1,13 +1,16 @@
 package com.egr.snookerrank.controller;
 
 import com.egr.snookerrank.beans.TournamnetStatsOption;
+import com.egr.snookerrank.bl.SnookerStats;
 import com.egr.snookerrank.dto.*;
 import com.egr.snookerrank.dto.response.*;
+import com.egr.snookerrank.model.Player;
 import com.egr.snookerrank.service.PlayerService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 
+import org.antlr.v4.runtime.misc.Pair;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -19,9 +22,11 @@ import java.time.LocalDate;
 public class PlayerController {
 
     private final PlayerService playerService;
+    private final SnookerStats snookerStats;
 
-    public PlayerController(PlayerService playerService) {
+    public PlayerController(PlayerService playerService, SnookerStats snookerStats) {
         this.playerService = playerService;
+        this.snookerStats  = snookerStats;
     }
 
     @Operation(
@@ -108,6 +113,7 @@ public class PlayerController {
                     @ApiResponse(responseCode = "200", description = "Player found"),
             }
     )
+
     @GetMapping("/playerDetails")
     public  RestApiResponse<PlayerDetailsDTO> playerDetails(@RequestParam Integer key,
                                                                      @RequestParam(defaultValue = "false") Boolean isRanking){
@@ -131,7 +137,7 @@ public class PlayerController {
 
 
     @Operation(
-            summary = "Tournament Stats",
+            summary = "Tournament Stats based on player",
             description = "Get Tournament Stats based on player key",
             responses = {
                     @ApiResponse(responseCode = "200", description = "Player found"),
@@ -146,19 +152,40 @@ public class PlayerController {
         return new RestApiResponse<>("SUCCESS", "Data fetched successfully", tournamentStats);
 
     }
-
+    @Operation(
+            summary = "get tournamnetDetails",
+            description = "Get tournamnet details ",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "TOurnamnet Details"),
+            }
+    )
     @GetMapping("/tournamnetDetails")
     public  RestApiResponse<List<MatchResultDTO>> tournamentDetails(@RequestParam Integer tournamentKey){
        List<MatchResultDTO> result = playerService.getTOurnamentDetals(tournamentKey);
         return new RestApiResponse<>("SUCCESS", "Data fetched successfully", result);
 
     }
+
+    @Operation(
+            summary = "get event results",
+            description = "get event results ",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "Event Details"),
+            }
+    )
     @GetMapping("/eventResults")
     public RestApiResponse<EventResultsDTO> eventResults(@RequestParam Integer eventKey){
         EventResultsDTO eventResults = playerService.getEventResults(eventKey);
         return new RestApiResponse<>("SUCCESS", "Data fetched successfully", eventResults);
     }
 
+    @Operation(
+            summary = "Search all events",
+            description = "get events ",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "Event Details"),
+            }
+    )
     @GetMapping("/eventList")
     public RestApiResponse<List<EventListDTO>> eventList(@RequestParam Integer year){
         List<EventListDTO> eventList = playerService.getEventList(year);
@@ -166,15 +193,92 @@ public class PlayerController {
 
     }
 
+    @Operation(
+            summary = "Event prize funds",
+            description = "get events prize funds ",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "Event Details"),
+            }
+    )
     @GetMapping("/eventPrizeFund")
     public RestApiResponse<EventResultsDTO> eventPrizeFund(@RequestParam Integer eventKey){
         EventResultsDTO eventREsult = playerService.getEventPrizeFund(eventKey);
         return new RestApiResponse<>("SUCCESS", "Data fetched successfully", eventREsult);
     }
+    @Operation(
+            summary = "Tournamnet Stats",
+            description = "Tournamnet Stats ",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "Tournamnet Stats"),
+            }
+    )
     @GetMapping("/tournamentStatsSummary")
     public RestApiResponse<List<TournamnetStatsSummaryDTO>> tournamentStatsSummary(@RequestParam Integer tournamentKey){
         List<TournamnetStatsSummaryDTO> tournamentstats =  playerService.tournamentStatsSummary(tournamentKey);
         return new RestApiResponse<>("SUCCESS", "Data fetched successfully", tournamentstats);
     }
 
+
+    @Operation(
+            summary = "Head2HeadList Provides details of H2H against the requested player",
+            description = "Refer to player stats H2H",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "Head2HeadList"),
+            }
+    )
+    @GetMapping("/Head2HeadList")
+    public RestApiResponse<H2HListDTO> head2HeadList(@RequestParam Integer playerId){
+        H2HListDTO H2Hlist=  playerService.fetchHead2HeadList(playerId);
+        return new RestApiResponse<>("SUCCESS", "Data fetched successfully", H2Hlist);
+
+    }
+
+
+    @Operation(
+            summary = "Head2HeadList Provides name of all players",
+            description = "Refer to perdictor tools page",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "Head2HeadList"),
+            }
+    )
+    @GetMapping("/Head2HeadPlayersList")
+    public RestApiResponse<List<PlayerDTO>> head2HeadPlayers()
+    {
+       List<PlayerDTO> players = playerService.fetchHead2HeadPlayersList();
+        return new RestApiResponse<>("SUCCESS", "Data fetched successfully", players);
+    }
+
+    @Operation(
+            summary = "Head2HeadchancesToWin Provides chances to win 2 players",
+            description = "Refer to perdictor tools page",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "Head2HeadList"),
+            }
+    )
+    @GetMapping("/Head2HeadchancesToWin")
+    public RestApiResponse<H2HChancesToWinDTO> chancesToWin(@RequestParam Double player1Fdi,@RequestParam Double player2Fdi, @RequestParam Integer firstTo){
+        H2HChancesToWinDTO h2HChancesToWinDTO = new H2HChancesToWinDTO();
+        Double nChancePlayer1 = snookerStats.chanceToWin(player1Fdi,player2Fdi,"L",firstTo);
+       Double nChancePlayer2 = 1-nChancePlayer1;
+        Pair<Double,Double> chanceForBothPlayers = new Pair<>(nChancePlayer1*100,nChancePlayer2*100);
+        List<CorrectScoreDTO> correctScoreDTOS=snookerStats.calculateCorrectScores(firstTo,player1Fdi,player2Fdi);
+        h2HChancesToWinDTO.setCorrectScoreDTOS(correctScoreDTOS);
+        h2HChancesToWinDTO.setChancesToWin(chanceForBothPlayers);
+        return new RestApiResponse<>("SUCCESS", "Data fetched successfully", h2HChancesToWinDTO);
+
+    }
+
+    @Operation(
+            summary = "Head2HeadchancesToWinmatchResult Provides chances to win 2 players",
+            description = "Refer to perdictor tools page",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "Head2HeadList"),
+            }
+    )
+    @GetMapping("/Head2HeadchancesToWinmatchResult")
+    public RestApiResponse<Head2HeadchancesToWinmatchResultDTO> getMatchResults(@RequestParam int player1Key, @RequestParam int player2Key) {
+        Head2HeadchancesToWinmatchResultDTO dto = playerService.getMatchResults(player1Key, player2Key);
+        return new RestApiResponse<>("SUCCESS", "Data fetched successfully", dto);
+
+    }
 }

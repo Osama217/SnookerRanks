@@ -24,7 +24,6 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
@@ -344,7 +343,7 @@ public class PlayerService {
 
     public List<TournamnetStatsSummaryDTO> tournamentStatsSummary(Integer tournamentKey) {
         LinkedHashMap<String, TournamnetStatsSummaryDTO> statMap = new LinkedHashMap<>();
-        Map<String,Integer> highest = new LinkedHashMap<>();
+        Map<String, Integer> highest = new LinkedHashMap<>();
         String name = playerRepository.getTournamentName(tournamentKey);
         if (null != name && !name.isEmpty()) {
             name = name + " Records";
@@ -357,11 +356,11 @@ public class PlayerService {
             stats.addAll(playerRepository.getOldestWinner(tournamentKey));
             stats.addAll(playerRepository.getMostCenturyinTour(tournamentKey));
             stats.addAll(playerRepository.getMostCenturyinMatch(tournamentKey));
-            stats.forEach(stat->{
-                highest.putIfAbsent(stat.getRoundLabel(),0);
+            stats.forEach(stat -> {
+                highest.putIfAbsent(stat.getRoundLabel(), 0);
                 Integer max = highest.get(stat.getRoundLabel());
-                if(stat.getCount()>max){
-                    highest.put(stat.getRoundLabel(),stat.getCount());
+                if (stat.getCount() > max) {
+                    highest.put(stat.getRoundLabel(), stat.getCount());
                 }
             });
 
@@ -373,8 +372,8 @@ public class PlayerService {
                         Integer max = highest.get(stat.getRoundLabel());
                         switch (stat.getRoundLabel()) {
                             case "Most Wins", "Most Finals", "Most Quarter Finals", "Most Semi Finals"
-                                 ,"Most Appearances", "Most Century Breaks in a Match" -> {
-                                if(Objects.equals(stat.getCount(), max)) {
+                            , "Most Appearances", "Most Century Breaks in a Match" -> {
+                                if (Objects.equals(stat.getCount(), max)) {
                                     if (statsDTO.getAmount().isEmpty()) {
                                         statsDTO.setAmount(stat.getCount() + " by " + stat.getPlayerName());
                                     } else {
@@ -382,12 +381,12 @@ public class PlayerService {
                                     }
                                 }
                             }
-                            case "Most Century Breaks in a Tournament" ->{
-                                if(Objects.equals(stat.getCount(), max)) {
+                            case "Most Century Breaks in a Tournament" -> {
+                                if (Objects.equals(stat.getCount(), max)) {
                                     if (statsDTO.getAmount().isEmpty()) {
-                                        statsDTO.setAmount(stat.getCount() + " by " + stat.getPlayerName() + " ("+stat.getYear() +" )") ;
+                                        statsDTO.setAmount(stat.getCount() + " by " + stat.getPlayerName() + " (" + stat.getYear() + " )");
                                     } else {
-                                        statsDTO.setAmount(statsDTO.getAmount() + " , " + stat.getPlayerName() + " ("+stat.getYear() +" )");
+                                        statsDTO.setAmount(statsDTO.getAmount() + " , " + stat.getPlayerName() + " (" + stat.getYear() + " )");
                                     }
                                 }
                             }
@@ -400,5 +399,89 @@ public class PlayerService {
             );
         }
         return new ArrayList<>(statMap.values());
+    }
+
+    public H2HListDTO fetchHead2HeadList(Integer playerId) {
+        H2HListDTO h2HListDTO = new H2HListDTO();
+        Player player = playerRepository.findByPlayerKey(playerId);
+        if (null == player) {
+            throw new RuntimeException("No Player found");
+        }
+       List<PlayerH2HStatsDTO> H2hList= playerRepository.getCompleteH2HList(playerId);
+        h2HListDTO.setPlayerH2HStats(H2hList);
+        h2HListDTO.setName(player.getPlayerName());
+        return h2HListDTO;
+
+    }
+
+    public List<PlayerDTO> fetchHead2HeadPlayersList() {
+           List<PlayerDTO> playerDTOList =new ArrayList<>();
+            List<Player> players = playerRepository.findAllH2HPlayers();
+            for(Player p :players){
+                PlayerDTO playerDTO = new PlayerDTO(p.getPlayerKey(),p.getPlayerName(),p.getFdi(),p.getCountryName(),p.getAge());
+                playerDTOList.add(playerDTO);
+
+            }
+        return playerDTOList;
+    }
+
+    public Head2HeadchancesToWinmatchResultDTO getMatchResults(int player1Key, int player2Key) {
+        // Retrieve raw match data using JPA native query
+        Head2HeadchancesToWinmatchResultDTO head2HeadchancesToWinmatchResultDTO = new Head2HeadchancesToWinmatchResultDTO();
+        List<Object[]> rows = playerRepository.findMatchStats(player1Key, player2Key);
+
+        // Initialize counts array
+        int[][] arrCounts = new int[5][3]; // [5 categories x 3 (wins, draws, losses)]
+        for (Object[] row : rows) {
+            String category = (String) row[4]; // e.event_category
+            int winnerScore = (Integer) row[10]; // m.winner_score
+            int loserScore = (Integer) row[11]; // m.loser_score
+
+            // Map category to index
+            int categoryIndex = getCategory(category);
+            // Determine who won and who lost
+            Integer winnerKey = (Integer) row[6]; // m.winner_key
+            Integer loserKey = (Integer) row[7];  // m.loser_key
+
+            if (winnerKey.equals(player1Key)) {
+                if (winnerScore != loserScore && winnerScore != 0) {
+                    arrCounts[categoryIndex][0]++; // Player 1 wins
+                    arrCounts[4][0]++; // Totals
+                } else {
+                    arrCounts[categoryIndex][1]++; // Draw
+                    arrCounts[4][1]++; // Totals
+                }
+            } else {
+                if (winnerScore != loserScore && winnerScore != 0) {
+                    arrCounts[categoryIndex][2]++; // Player 2 wins
+                    arrCounts[4][2]++; // Totals
+                } else {
+                    arrCounts[categoryIndex][1]++; // Draw
+                    arrCounts[4][1]++; // Totals
+                }
+            }
+        }
+        List<MatchResultCategoryWiseDTO> stats = new ArrayList<>();
+        stats.add(new MatchResultCategoryWiseDTO("World Championship", arrCounts[0][0], arrCounts[0][1], arrCounts[0][2]));
+        stats.add(new MatchResultCategoryWiseDTO("Ranked Majors", arrCounts[1][0], arrCounts[1][1], arrCounts[1][2]));
+        stats.add(new MatchResultCategoryWiseDTO("Other Ranking", arrCounts[2][0], arrCounts[2][1], arrCounts[2][2]));
+        stats.add(new MatchResultCategoryWiseDTO("Non Ranking", arrCounts[3][0], arrCounts[3][1], arrCounts[3][2]));
+        stats.add(new MatchResultCategoryWiseDTO("Totals", arrCounts[4][0], arrCounts[4][1], arrCounts[4][2]));
+        head2HeadchancesToWinmatchResultDTO.setRecentMeetings(stats);
+        List<MatchResultsWithOrder> statswithOrder = playerRepository.findMatchStatsWithOrder(player1Key, player2Key);
+        statswithOrder.forEach(stat ->{stat.setScore(stat.getLoserScore()+" V "+stat.getWinnerScore());
+            if (stat.getLoserKey().equals(player1Key)) {
+                stat.setResult("Lost");
+            }else{stat.setResult("Won");
+            }});
+
+        head2HeadchancesToWinmatchResultDTO.setStatswithOrder(statswithOrder);
+        return head2HeadchancesToWinmatchResultDTO;
+    }
+    private int getCategory(String eventCategory) {
+        if ("WC".equals(eventCategory)) return 0;
+        if ("MJ".equals(eventCategory)) return 1;
+        if ("U".equals(eventCategory) || "0".equals(eventCategory)) return 2;
+        return 3; // default for "Other Ranking" or "Non Ranking"
     }
 }
