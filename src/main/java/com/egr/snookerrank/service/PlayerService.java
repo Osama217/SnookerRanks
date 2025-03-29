@@ -12,6 +12,7 @@ import com.egr.snookerrank.repositroy.playerstats.PlayerStatsRepository;
 import com.egr.snookerrank.repositroy.playerstats.PlayerStatsRepositoryImpl;
 import com.egr.snookerrank.utils.CommonUtilities;
 import lombok.AllArgsConstructor;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.commons.text.StringEscapeUtils;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
@@ -20,6 +21,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.sql.Timestamp;
+import java.text.SimpleDateFormat;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -407,7 +409,7 @@ public class PlayerService {
         if (null == player) {
             throw new RuntimeException("No Player found");
         }
-       List<PlayerH2HStatsDTO> H2hList= playerRepository.getCompleteH2HList(playerId);
+        List<PlayerH2HStatsDTO> H2hList = playerRepository.getCompleteH2HList(playerId);
         h2HListDTO.setPlayerH2HStats(H2hList);
         h2HListDTO.setName(player.getPlayerName());
         return h2HListDTO;
@@ -415,13 +417,13 @@ public class PlayerService {
     }
 
     public List<PlayerDTO> fetchHead2HeadPlayersList() {
-           List<PlayerDTO> playerDTOList =new ArrayList<>();
-            List<Player> players = playerRepository.findAllH2HPlayers();
-            for(Player p :players){
-                PlayerDTO playerDTO = new PlayerDTO(p.getPlayerKey(),p.getPlayerName(),p.getFdi(),p.getCountryName(),p.getAge());
-                playerDTOList.add(playerDTO);
+        List<PlayerDTO> playerDTOList = new ArrayList<>();
+        List<Player> players = playerRepository.findAllH2HPlayers();
+        for (Player p : players) {
+            PlayerDTO playerDTO = new PlayerDTO(p.getPlayerKey(), p.getPlayerName(), p.getFdi(), p.getCountryName(), p.getAge());
+            playerDTOList.add(playerDTO);
 
-            }
+        }
         return playerDTOList;
     }
 
@@ -469,19 +471,229 @@ public class PlayerService {
         stats.add(new MatchResultCategoryWiseDTO("Totals", arrCounts[4][0], arrCounts[4][1], arrCounts[4][2]));
         head2HeadchancesToWinmatchResultDTO.setRecentMeetings(stats);
         List<MatchResultsWithOrder> statswithOrder = playerRepository.findMatchStatsWithOrder(player1Key, player2Key);
-        statswithOrder.forEach(stat ->{stat.setScore(stat.getLoserScore()+" V "+stat.getWinnerScore());
+        statswithOrder.forEach(stat -> {
+            stat.setScore(stat.getLoserScore() + " V " + stat.getWinnerScore());
             if (stat.getLoserKey().equals(player1Key)) {
                 stat.setResult("Lost");
-            }else{stat.setResult("Won");
-            }});
+            } else {
+                stat.setResult("Won");
+            }
+        });
 
         head2HeadchancesToWinmatchResultDTO.setStatswithOrder(statswithOrder);
         return head2HeadchancesToWinmatchResultDTO;
     }
+
     private int getCategory(String eventCategory) {
         if ("WC".equals(eventCategory)) return 0;
         if ("MJ".equals(eventCategory)) return 1;
         if ("U".equals(eventCategory) || "0".equals(eventCategory)) return 2;
         return 3; // default for "Other Ranking" or "Non Ranking"
     }
+
+    public Map<String, List<RankDetails>> getTalentPortal(Integer playerKey, PeriodType period) {
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+        Calendar calendar = Calendar.getInstance();  // Start from today's date
+        List<Map<String, Integer>> data = null;
+        Map<String, List<RankDetails>> response = new HashMap<>();
+        List<RankFields> ranks = playerRepository.getTalentPortalRanks();
+        int months = period.getNumberOfMonths();
+        for (int i = 0; i < 6; i++) {
+            List<RankDetails> finalResponseBasedOnDate = new ArrayList<>();
+            String dateEnd = sdf.format(calendar.getTime());
+            calendar.add(Calendar.MONTH, -months);
+            String dateStart = sdf.format(calendar.getTime());
+            data = playerRepository.getTalentDEtailsByDate(playerKey, dateStart, dateEnd);
+            double nCompare1;
+            String result = "";
+
+            for (RankFields rank : ranks) {
+                switch (rank.getStatType()) {
+                    case "D":
+                        if (null != data.getFirst().get(rank.getField2()) && data.getFirst().get(rank.getField2()) > 0) {
+                            nCompare1 = data.getFirst().get(rank.getField1()) / (double) data.getFirst().get(rank.getField2());
+                            result = String.format("%.2f", Math.round(nCompare1 * 100.0) / 100.0);
+                        }
+                        break;
+
+                    case "A":
+                        if (null != data.getFirst().get(rank.getField2()) && data.getFirst().get(rank.getField2()) > 0) {
+                            nCompare1 = data.getFirst().get(rank.getField1()) / (double) data.getFirst().get(rank.getField2());
+                            result = String.format("%.2f", Math.round(nCompare1 * 3.0 * 100.0) / 100.0);
+                        }
+                        break;
+
+                    case "P":
+                        if (null != data.getFirst().get(rank.getField2()) && data.getFirst().get(rank.getField2()) > 0) {
+                            nCompare1 = data.getFirst().get(rank.getField1()) / (double) data.getFirst().get(rank.getField2());
+                            result = String.format("%.2f", ((Math.round(nCompare1 * 10000.0) / 10000.0)) * 100) + "%";
+                        }
+                        break;
+
+                    case "X":
+                        if (null != data.getFirst().get(rank.getField1()) && data.getFirst().get(rank.getField1()) != -1) {
+                            result = String.valueOf(data.getFirst().get(rank.getField1()));
+
+                        }
+                        break;
+                    default:
+                        result = String.valueOf(data.getFirst().get(rank.getField1()));
+                        break;
+
+                }
+                finalResponseBasedOnDate.add(new RankDetails(rank.getRankKey(), rank.getRankName(),result));
+
+
+            }
+            response.putIfAbsent(dateStart + " - " + dateEnd, finalResponseBasedOnDate);
+
+        }
+
+
+        return response;
+
+    }
+
+    public void getTalentPortalHead2Head(Integer playerKey, String dateFrom, String dateTo, Map<Integer, List<RankDetails>> response) {
+        List<Map<String, Integer>> data = null;
+        List<RankFields> ranks = playerRepository.getTalentPortalRanks();
+        List<RankDetails> finalResponseBasedOnDate = new ArrayList<>();
+
+        data = playerRepository.getTalentDEtailsByDate(playerKey, dateFrom, dateTo);
+        double nCompare1;
+        String result = "";
+
+        for (RankFields rank : ranks) {
+            switch (rank.getStatType()) {
+                case "D":
+                    if (null != data.getFirst().get(rank.getField2()) && data.getFirst().get(rank.getField2()) > 0) {
+                        nCompare1 = data.getFirst().get(rank.getField1()) / (double) data.getFirst().get(rank.getField2());
+                        result = String.format("%.2f", Math.round(nCompare1 * 100.0) / 100.0);
+                    }
+                    break;
+
+                case "A":
+                    if (null != data.getFirst().get(rank.getField2()) && data.getFirst().get(rank.getField2()) > 0) {
+                        nCompare1 = data.getFirst().get(rank.getField1()) / (double) data.getFirst().get(rank.getField2());
+                        result = String.format("%.2f", Math.round(nCompare1 * 3.0 * 100.0) / 100.0);
+                    }
+                    break;
+
+                case "P":
+                    if (null != data.getFirst().get(rank.getField2()) && data.getFirst().get(rank.getField2()) > 0) {
+                        nCompare1 = data.getFirst().get(rank.getField1()) / (double) data.getFirst().get(rank.getField2());
+                        result = String.format("%.2f", ((Math.round(nCompare1 * 10000.0) / 10000.0)) * 100) + "%";
+                    }
+                    break;
+
+                case "X":
+                    if (null != data.getFirst().get(rank.getField1()) && data.getFirst().get(rank.getField1()) != -1) {
+                        result = String.valueOf(data.getFirst().get(rank.getField1()));
+
+                    }
+                    break;
+                default:
+                    result = String.valueOf(data.getFirst().get(rank.getField1()));
+                    break;
+            }
+            finalResponseBasedOnDate.add(new RankDetails(rank.getRankKey(),rank.getRankName(),result));
+
+        }
+        response.putIfAbsent(playerKey, finalResponseBasedOnDate);
+
+    }
+
+    public List<FDIComparisonDTO> talenetPortaFDIComparison() {
+      return  playerRepository.gettalenetPortaFDIComparison();
+    }
+
+    public RankingMetaData rankingsMetaData() {
+        RankingMetaData rankingMetaData = new RankingMetaData();
+        List<Object[]> list =  playerRepository.getRanksForRanking();
+
+        for(Object[] obj : list){
+            rankingMetaData.getRanks().add(Pair.of(
+                    (Integer) obj[0],
+                    (String) obj[1]
+            ));
+        }
+        List<String> countryNames = playerRepository.getCountryNames();
+        rankingMetaData.setCountryNames(countryNames);
+        return rankingMetaData;
+
+    }
+
+
+    public RankingDTO rankings(Integer rankKey, String dateFrom, String dateTo, String country, Integer maxAge, boolean isWomen) {
+        RankingDTO rankingDTO = new RankingDTO();
+        List<OrderOfMeritDTO> orderOfMeritDTOS = null;
+        List<PlayerDTO> playerDTOS = new ArrayList<>();
+        if(rankKey.equals(1)) {
+            LocalDate date = LocalDate.parse(dateTo, DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+
+            int effectiveYear = (date.getMonthValue() == 1 && date.getDayOfMonth() < 7) ? date.getYear() - 1 : date.getYear();
+
+            List<Object[]> result = playerRepository.findOrderOfMerit(dateFrom, dateTo, 500, effectiveYear, null);
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+
+            orderOfMeritDTOS = result.stream().map(row -> new OrderOfMeritDTO(
+                    (Integer) row[0],  // playerKey
+                    (String) row[1],   // playerName
+                    (String) row[2],   // countryName
+                    (Double) row[3],  // age
+                    null != row[4] ? ((Timestamp) row[4]).toLocalDateTime().format(formatter) : null,   // dob
+                    (Boolean) row[5],  // isWoman
+                    (Double) row[6],  // sumPrizeMoney
+                    (Integer) row[7],  // totalEvents
+                    (Integer) row[8]   // inProgress
+            )).collect(Collectors.toList());
+        } else {
+          playerDTOS =  playerRepository.findPlayers(rankKey,country,isWomen?1:null,maxAge);
+
+        }
+
+        rankingDTO.setOrderOfMerit(orderOfMeritDTOS);
+        rankingDTO.setPlayers(playerDTOS);
+    return rankingDTO;
+    }
+
+    public  List<PlayerStats> playerDetailStats(Integer playerKey,Integer rankKey) {
+        RankText rankText = rankTextRepository.findByRankTextKey(rankKey);
+        List<Object[]> result;
+        if (rankText != null && rankText.isMatchStat()) {
+            LocalDate dDateTo = LocalDate.now(); // Today's date
+            LocalDate dDateFrom = dDateTo.minusYears(1); // One year ago
+            result = playerStatsRepository.findPlayersWithStatsRankingFilters(rankText.getStatType(), rankText.getField1(), rankText.getField2(),
+                    null, null, null, dDateFrom, dDateTo, 1, rankText.isOrderAsc(), 32);
+            List<PlayerStats> ranksDTOList = result.stream().map(row -> {
+                if (row.length > 4) {
+                    return new PlayerStats(
+                            (Integer) row[0],
+                            (String) row[1],
+                            (String) row[2],
+                            row.length > 5 && row[5] != null ?
+                                    new BigDecimal(((Number) row[5]).doubleValue()).setScale(2, RoundingMode.HALF_UP)
+                                    : null,
+                            (Number) row[3],
+                            (Number) row[4]
+                    );
+                } else {
+                    return new PlayerStats(
+                            (Integer) row[0],
+                            (String) row[1],
+                            (String) row[2],
+                            (Number) row[3]
+                    );
+                }
+            }).collect(Collectors.toList());
+            return ranksDTOList;
+
+        }
+        return null;
+    }
 }
+
+
+
+
+

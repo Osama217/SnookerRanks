@@ -1,5 +1,6 @@
 package com.egr.snookerrank.controller;
 
+import com.egr.snookerrank.beans.PeriodType;
 import com.egr.snookerrank.beans.TournamnetStatsOption;
 import com.egr.snookerrank.bl.SnookerStats;
 import com.egr.snookerrank.dto.*;
@@ -13,7 +14,9 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import org.antlr.v4.runtime.misc.Pair;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
+import java.text.SimpleDateFormat;
+import java.time.format.DateTimeFormatter;
+import java.util.*;
 import java.time.LocalDate;
 
 @RestController
@@ -281,4 +284,122 @@ public class PlayerController {
         return new RestApiResponse<>("SUCCESS", "Data fetched successfully", dto);
 
     }
-}
+
+
+    @Operation(
+            summary = "TalenetPortalPlayerReport",
+            description = "Refer to TalenetPortal PlayerReport page",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "TalenetPortal"),
+            }
+    )
+    @GetMapping("/TalenetPortalPlayerReport")
+    public RestApiResponse< Map<String, List<RankDetails>>> talenetPortal(@RequestParam Integer playerKey, @RequestParam PeriodType period) {
+        Map<String, List<RankDetails>> resp = playerService.getTalentPortal(playerKey,period);
+        return new RestApiResponse<>("SUCCESS", "Data fetched successfully", resp);
+
+    }
+
+    @Operation(
+            summary = "TalenetPortalPlayerReport",
+            description = "Refer to TalenetPortal Head to head page. Date formats are yyyy-MM-dd",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "TalenetPortal"),
+            }
+    )
+    @GetMapping("/TalenetPortalH2H")
+    public RestApiResponse<Map<Integer, List<RankDetails>>> talenetPortalHead2Head(@RequestParam Integer player1Key,@RequestParam Integer player2Key,
+                                                                                                                         @RequestParam String dateFrom, @RequestParam String dateTo) {
+        if (!dateFrom.matches("\\d{4}-\\d{2}-\\d{2}") || !dateTo.matches("\\d{4}-\\d{2}-\\d{2}")) {
+            throw new IllegalArgumentException("Invalid date format. Expected format: yyyy-MM-dd");
+        }
+        Map<Integer, List<RankDetails>> response = new LinkedHashMap<>();
+
+        playerService.getTalentPortalHead2Head(player1Key,dateFrom,dateTo,response);
+        playerService.getTalentPortalHead2Head(player2Key,dateFrom,dateTo,response);
+
+        return new RestApiResponse<>("SUCCESS", "Data fetched successfully", response);
+
+    }
+    @Operation(
+            summary = "TalenetPortaFDIComparison",
+            description = "Refer to TalenetPortal FDI Comparison page.",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "TalenetPortal"),
+            }
+    )
+    @GetMapping("/TalenetPortaFDIComparison")
+    public RestApiResponse<List<FDIComparisonDTO>> talenetPortaFDIComparison() {
+
+       List<FDIComparisonDTO> list = playerService.talenetPortaFDIComparison();
+
+        return new RestApiResponse<>("SUCCESS", "Data fetched successfully", list);
+    }
+
+    @Operation(
+            summary = "RankingsMetaData",
+            description = "Refer to Rankings page.",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "RankingsMetaData"),
+            }
+    )
+    @GetMapping("/RankingsMetaData")
+    public RestApiResponse<RankingMetaData> rankingsMetaData() {
+
+        RankingMetaData data = playerService.rankingsMetaData();
+
+        return new RestApiResponse<>("SUCCESS", "Data fetched successfully", data);
+    }
+
+    @Operation(
+            summary = "Rankings",
+            description = "Refer to Rankings page.",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "Rankings"),
+            }
+    )
+    @GetMapping("/Rankings")
+    public RestApiResponse<RankingDTO> rankings(@RequestParam Integer rankKey,@RequestParam String dateFrom, @RequestParam String dateTo, @RequestParam(required = false) String country, @RequestParam Integer maxAge, @RequestParam(required = false) boolean isWomen) {
+
+        RankingDTO rankingDTO = playerService.rankings(rankKey,dateFrom,dateTo,country,maxAge,isWomen);
+
+        return new RestApiResponse<>("SUCCESS", "Data fetched successfully", rankingDTO);
+    }
+
+    @Operation(
+            summary = "PlayerStatsLast12Month",
+            description = "Refer to Player Details page.",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "PlayerStatsLast12Month"),
+            }
+    )
+    @GetMapping("/PlayerStatsLast12Month")
+    public RestApiResponse<Map<Integer, List<RankDetails>>> PlayerStatsLast12Month(@RequestParam Integer playerKey) {
+        Map<Integer, List<RankDetails>> response =new LinkedHashMap<>();
+        LocalDate dDateTo = LocalDate.now(); // Today's date
+        LocalDate dDateFrom = dDateTo.minusYears(1);
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+
+        playerService.getTalentPortalHead2Head(playerKey, formatter.format(dDateFrom),formatter.format(dDateTo),response);
+
+
+        return new RestApiResponse<>("SUCCESS", "Data fetched successfully", response);
+    }
+
+    @Operation(
+            summary = "PlayerDetailStats",
+            description = "Refer to Player Details page.",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "PlayerDetailStats"),
+            }
+    )
+    @GetMapping("/PlayerDetailStats")
+    public RestApiResponse<List<PlayerStats>> PlayerDetailStats(@RequestParam Integer playerKey,@RequestParam(required = false)Integer rankKey) {
+        if(null ==rankKey)
+            rankKey= 101;
+        List<PlayerStats> stats= playerService.playerDetailStats(playerKey,rankKey);
+
+        return new RestApiResponse<>("SUCCESS", "Data fetched successfully", stats);
+    }
+
+    }

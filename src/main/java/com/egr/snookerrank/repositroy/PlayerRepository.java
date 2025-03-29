@@ -1,20 +1,19 @@
 package com.egr.snookerrank.repositroy;
 
-import com.egr.snookerrank.beans.AnnualWinLoss;
-import com.egr.snookerrank.beans.MatchResults;
-import com.egr.snookerrank.beans.PrizeFund;
+import com.egr.snookerrank.beans.*;
 import com.egr.snookerrank.dto.*;
 import com.egr.snookerrank.dto.response.EventListDTO;
 import com.egr.snookerrank.dto.MatchResultsWithOrder;
 import com.egr.snookerrank.model.Player;
-import com.egr.snookerrank.beans.PlayerPrizeStats;
 import com.egr.snookerrank.model.TournamnetStats;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.Date;
 import java.util.List;
+import java.util.Map;
 
 @Repository
 public interface PlayerRepository extends JpaRepository<Player, Integer> {
@@ -371,5 +370,71 @@ public interface PlayerRepository extends JpaRepository<Player, Integer> {
             " ORDER BY m.match_date DESC,e.event_date DESC,r.round_no DESC,m.match_key DESC",
             nativeQuery = true)
     List<MatchResultsWithOrder> findMatchStatsWithOrder(@Param("player1") Integer player1, @Param("player2") Integer player2);
+
+    @Query(value = "SELECT \n" +
+            "    SUM(CASE WHEN pots_made = -1 THEN 0 ELSE pots_made END) AS pots_made,\n" +
+            "    SUM(CASE WHEN pots_attempted = -1 THEN 0 ELSE pots_attempted END) AS pots_attempted,\n" +
+            "    SUM(CASE WHEN safety_made = -1 THEN 0 ELSE safety_made END) AS safety_made,\n" +
+            "    SUM(CASE WHEN safety_attempted = -1 THEN 0 ELSE safety_attempted END) AS safety_attempted,\n" +
+            "    SUM(CASE WHEN long_pots_made = -1 THEN 0 ELSE long_pots_made END) AS long_pots_made,\n" +
+            "    SUM(CASE WHEN long_pots_attempted = -1 THEN 0 ELSE long_pots_attempted END) AS long_pots_attempted,\n" +
+            "    SUM(CASE WHEN time_on_table = -1 THEN 0 ELSE time_on_table END) AS time_on_table,\n" +
+            "    SUM(CASE WHEN shots_taken = -1 THEN 0 ELSE shots_taken END) AS shots_taken,\n" +
+            "    SUM(CASE WHEN century_breaks = -1 THEN 0 ELSE century_breaks END) AS century_breaks,\n" +
+            "    SUM(CASE WHEN fifty_breaks = -1 THEN 0 ELSE fifty_breaks END) AS fifty_breaks,\n" +
+            "    SUM(CASE WHEN seventy_breaks = -1 THEN 0 ELSE seventy_breaks END) AS seventy_breaks,\n" +
+            "    SUM(CASE WHEN frames_won = -1 THEN 0 ELSE frames_won END) AS frames_won,\n" +
+            "    SUM(CASE WHEN frames_played = -1 THEN 0 ELSE frames_played END) AS frames_played,\n" +
+            "    SUM(CASE WHEN max_breaks = -1 THEN 0 ELSE max_breaks END) AS max_breaks,\n" +
+            "    MAX(CASE WHEN highest_break = -1 THEN 0 ELSE highest_break END) AS highest_break,\n" +
+            "    SUM(CASE WHEN points_scored = -1 THEN 0 ELSE points_scored END) AS points_scored\n" +
+            "FROM \n" +
+            "    match_player_stats mps\n" +
+            "JOIN \n" +
+            "    match m ON mps.match_key = m.match_key\n" +
+            "JOIN \n" +
+            "    event e ON m.event_key = e.event_key\n" +
+            "WHERE  \n" +
+            "    m.match_date >= :fromDate \n" +
+            "    AND m.match_date <= :toDate  \n" +
+            "    AND mps.player_key = :playerKey;",nativeQuery = true)
+    List<Map<String,Integer>> getTalentDEtailsByDate(@Param("playerKey") Integer playerKey, @Param("fromDate") String fromDate,
+                                                    @Param("toDate") String toDate);
+    @Query(value = "SELECT rank_name as rankName,rank_text_key as rankKey,stat_type as statType,field1,field2 FROM rank_text " +
+            "WHERE is_talent_portal=1  ORDER BY talent_portal_order",nativeQuery = true)
+    List<RankFields> getTalentPortalRanks();
+
+    @Query(value = "SELECT player_key as playerKey," +
+            "player_name as playerName," +
+            "age," +
+            "fdi_rank as fdiRank," +
+            "world_rank as worldRank," +
+            "country_name as countryName," +
+            "(world_rank-fdi_rank) diff " +
+            "FROM player WHERE NOT world_rank IS NULL AND NOT fdi_rank IS NULL ORDER BY diff DESC\n",nativeQuery = true)
+    List<FDIComparisonDTO> gettalenetPortaFDIComparison();
+
+    @Query(value = "SELECT rank_text_key,rank_name FROM rank_text WHERE is_ranking=1 ORDER BY order_num\n",nativeQuery = true)
+    List<Object[]> getRanksForRanking();
+
+    @Query(value = "SELECT DISTINCT country_name FROM player WHERE country_name<>'' AND NOT country_name IS NULL ORDER BY country_name",nativeQuery = true)
+    List<String> getCountryNames();
+
+    @Query(value = "SELECT player_key as playerKey," +
+            " player_name as PlayerName, " +
+            "country_name as countryName, " +
+            "fdi " +
+            "FROM player " +
+            "WHERE fdi IS NOT NULL " +
+            "AND (:country IS NULL OR country_name = :country) " +
+            "AND (:isWoman IS NULL OR :isWoman = 1 AND is_woman = 1) " +
+            "AND (age < :maxAge AND age <> 0) " +
+            "AND fdi_matches > 20 " +
+            "ORDER BY fdi DESC",
+            nativeQuery = true)
+    List<PlayerDTO> findPlayers(@Param("rankKey") int rankKey,
+                             @Param("country") String countryName,
+                             @Param("isWoman") Integer isWoman,  // Changed to `Boolean`
+                             @Param("maxAge") Integer maxAge);
 
 }

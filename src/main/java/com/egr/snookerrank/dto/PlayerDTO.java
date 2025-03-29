@@ -72,4 +72,11 @@ public class PlayerDTO {
         this.countryName = countryName;
         this.age = age;
     }
+
+    public PlayerDTO(Integer playerKey, String playerName, String countryName, Double fdi) {
+        this.playerKey = playerKey;
+        this.playerName = playerName;
+        this.countryName = countryName;
+        this.fdi = fdi;
+    }
 }
