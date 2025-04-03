@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import com.fasterxml.jackson.annotation.JsonFormat;
 
 import java.time.LocalDateTime;
 
@@ -19,6 +20,7 @@ public class PlayerDTO {
     private String countryName;
     private Double fdi;
     private Integer fdiMatches;
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
     private LocalDateTime fdiLastDate;
     private Double tournRank;
     private Double fdiRank;
@@ -28,6 +30,7 @@ public class PlayerDTO {
     private String nickname;
     private String website;
     private Double age;
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
     private LocalDateTime dob;
     private String homeTown;
     private String formerJob;
@@ -42,6 +45,7 @@ public class PlayerDTO {
     private Double yearGradingMatches;
     private Double sdbRanking;
     private Boolean isProfessional;
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
     private LocalDateTime dateOfDeath;
     private Double worldRank;
     private Double mostAccessRank;
@@ -54,6 +58,7 @@ public class PlayerDTO {
     private String biogPictureLink;
     private String contactEmailAddress;
     private Double piosRank;
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
     private LocalDateTime proStartDate;
     private Integer career147s;
     private Integer careerCenturies;

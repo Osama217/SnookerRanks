@@ -437,4 +437,278 @@ public interface PlayerRepository extends JpaRepository<Player, Integer> {
                              @Param("isWoman") Integer isWoman,  // Changed to `Boolean`
                              @Param("maxAge") Integer maxAge);
 
+
+
+    @Query(value = "SELECT p.player_key AS playerKey, p.player_name AS playerName, p.country_name AS countryName, " +
+            "ROUND(SUM(prize_money * conversion_rate), 0) AS stats " +
+            "FROM player p " +
+            "JOIN player_prize pp ON p.player_key = pp.player_key " +
+            "JOIN event e ON pp.event_key = e.event_key " +
+            "JOIN tournament t ON e.tournament_key = t.tournament_key " +
+            "WHERE 1=1 " +
+            "AND e.tournament_key = :tournamentKey " + // Hardcoded part
+            "AND e.event_date >= :dateFrom " +         // Hardcoded part
+            "AND e.event_date <= :dateTo " +           // Hardcoded part
+            "GROUP BY p.player_key, p.player_name, p.country_name " +
+            "HAVING SUM(prize_money) > 0 " +
+            "ORDER BY SUM(prize_money) DESC",
+            nativeQuery = true)
+    List<PlayerTournamnetStatsDTO> getPlayerPrizeSummary(@Param("tournamentKey") Integer tournamentKey,
+                                                         @Param("dateFrom") String dateFrom,
+                                                         @Param("dateTo") String dateTo);
+
+    @Query(value = "SELECT p.player_key playerKey, p.player_name playerName, p.country_name countryName, COUNT(*) stats " +
+            "FROM player p JOIN player_prize pp ON p.player_key=pp.player_key " +
+            "JOIN round r ON pp.round_no=r.round_no " +
+            "JOIN event e ON pp.event_key=e.event_key " +
+            "WHERE 1=1  " +
+            "AND e.tournament_key = :tournamentKey " + // Hardcoded part
+            "AND e.event_date >= :dateFrom " +         // Hardcoded part
+            "AND e.event_date <= :dateTo " +           // Hardcoded part
+            "AND r.allow_multi_prize=0 " +
+            "GROUP BY p.player_key, p.player_name, p.country_name " +
+            "ORDER BY COUNT(*) DESC", nativeQuery = true)
+    List<PlayerTournamnetStatsDTO> getPlayerApplications(@Param("tournamentKey") Integer tournamentKey,
+                                                         @Param("dateFrom") String dateFrom,
+                                                         @Param("dateTo") String dateTo);
+
+    @Query(value = "SELECT p.player_key playerKey, p.player_name playerName, p.country_name countryName, COUNT(*) stats " +
+            "FROM player p JOIN match m ON p.player_key=m.winner_key OR p.player_key=m.loser_key " +
+            "JOIN round r ON m.round_no=r.round_no " +
+            "JOIN event e ON m.event_key=e.event_key " +
+            "WHERE 1=1 " +
+            "AND e.tournament_key = :tournamentKey " + // Hardcoded part
+            "AND e.event_date >= :dateFrom " +         // Hardcoded part
+            "AND e.event_date <= :dateTo " +           // Hardcoded part
+            "AND m.is_bye=0 " +
+            "GROUP BY p.player_key, p.player_name, p.country_name " +
+            "ORDER BY COUNT(*) DESC", nativeQuery = true)
+    List<PlayerTournamnetStatsDTO> getPlayerMatches(@Param("tournamentKey") Integer tournamentKey,
+                                                    @Param("dateFrom") String dateFrom,
+                                                    @Param("dateTo") String dateTo);
+
+    @Query(value = "SELECT p.player_key playerKey, p.player_name playerName, p.country_name countryName, COUNT(*) stats " +
+            "FROM player p JOIN player_prize pp ON p.player_key=pp.player_key " +
+            "JOIN round r ON pp.round_no=r.round_no " +
+            "JOIN event e ON pp.event_key=e.event_key " +
+            "WHERE 1=1 " +
+            "AND e.tournament_key = :tournamentKey " + // Hardcoded part
+            "AND e.event_date >= :dateFrom " +         // Hardcoded part
+            "AND e.event_date <= :dateTo " +           // Hardcoded part
+            "AND r.allow_multi_prize=0 " +
+            "AND pp.prize_money > 0 " +
+            "GROUP BY p.player_key, p.player_name, p.country_name " +
+            "ORDER BY COUNT(*) DESC", nativeQuery = true)
+    List<PlayerTournamnetStatsDTO> getPlayerCashes(@Param("tournamentKey") Integer tournamentKey,
+                                                   @Param("dateFrom") String dateFrom,
+                                                   @Param("dateTo") String dateTo);
+
+    @Query(value = "SELECT p.player_key AS playerKey, p.player_name AS playerName, p.country_name AS countryName, " +
+            "((CONVERT(float, points_scored) * 3) / CONVERT(float, Snooker_thrown)) AS stats, " +
+            "FROM player p " +
+            "JOIN match m ON p.player_key = m.winner_key " +
+            "JOIN event e ON m.event_key = e.event_key " +
+            "JOIN round r ON m.round_no = r.round_no " +
+            "JOIN match_player_stats mps ON m.winner_key = mps.player_key AND m.match_key = mps.match_key " +
+            "JOIN player p2 ON m.loser_key = p2.player_key " +
+            "WHERE mps.Snooker_thrown > 0 AND (m.winner_score = 0 OR m.winner_score > m.loser_score) " +
+            "AND e.tournament_key = :tournamentKey " + // Hardcoded part
+            "AND e.event_date >= :dateFrom " +         // Hardcoded part
+            "AND e.event_date <= :dateTo " +           // Hardcoded part
+            "ORDER BY winnerAverage DESC", nativeQuery = true)
+    List<PlayerTournamnetStatsDTO> getWinnerAverage(@Param("tournamentKey") Integer tournamentKey,
+                                                    @Param("dateFrom") String dateFrom,
+                                                    @Param("dateTo") String dateTo);
+
+    @Query(value = "SELECT p.player_key AS playerKey, p.player_name AS playerName, p.country_name AS countryName, " +
+            "COUNT(*) AS numWins " +
+            "FROM player p " +
+            "JOIN player_prize pp ON p.player_key = pp.player_key " +
+            "JOIN event e ON pp.event_key = e.event_key " +
+            "JOIN tournament t ON e.tournament_key = t.tournament_key " +
+            "WHERE pp.round_no = 21 " +
+            "AND e.tournament_key = :tournamentKey " + // Hardcoded part
+            "AND e.event_date >= :dateFrom " +         // Hardcoded part
+            "AND e.event_date <= :dateTo " +           // Hardcoded part
+            "GROUP BY p.player_key, p.player_name, p.country_name " +
+            "HAVING COUNT(*) > 0 " +
+            "ORDER BY numWins DESC", nativeQuery = true)
+    List<PlayerTournamnetStatsDTO> getPlayerWins(@Param("tournamentKey") Integer tournamentKey,
+                                                 @Param("dateFrom") String dateFrom,
+                                                 @Param("dateTo") String dateTo);
+
+
+
+
+
+
+
+
+
+    @Query(value = "SELECT p.country_name AS countryName, " +
+            "(SELECT COUNT(*) FROM player_prize pp " +
+            "JOIN event e ON pp.event_key = e.event_key " +
+            "JOIN round r ON pp.round_no = r.round_no " +
+            "JOIN player p2 ON pp.player_key = p2.player_key " +
+            "WHERE p2.country_name = p.country_name " +
+            "AND e.tournament_key = :tournamentKey " + // Hardcoded part
+            "AND e.event_date >= :dateFrom " +         // Hardcoded part
+            "AND e.event_date <= :dateTo " +           // Hardcoded part
+            "AND r.order_num >= 2300) AS wins, " +
+            "(SELECT COUNT(*) FROM player_prize pp " +
+            "JOIN event e ON pp.event_key = e.event_key " +
+            "JOIN round r ON pp.round_no = r.round_no " +
+            "JOIN player p2 ON pp.player_key = p2.player_key " +
+            "WHERE p2.country_name = p.country_name " +
+            "AND e.tournament_key = :tournamentKey " + // Hardcoded part
+            "AND e.event_date >= :dateFrom " +         // Hardcoded part
+            "AND e.event_date <= :dateTo " +
+            "AND r.order_num >= 2200 AND r.order_num < 2300) AS ru, " +
+            "(SELECT COUNT(*) FROM player_prize pp " +
+            "JOIN event e ON pp.event_key = e.event_key " +
+            "JOIN round r ON pp.round_no = r.round_no " +
+            "JOIN player p2 ON pp.player_key = p2.player_key " +
+            "WHERE p2.country_name = p.country_name " +
+            "AND e.tournament_key = :tournamentKey " + // Hardcoded part
+            "AND e.event_date >= :dateFrom " +         // Hardcoded part
+            "AND e.event_date <= :dateTo " +           // Hardcoded part
+             "AND r.order_num >= 1900 AND r.order_num <= 2000) AS sf, " +
+            "(SELECT COUNT(*) FROM player_prize pp " +
+            "JOIN event e ON pp.event_key = e.event_key " +
+            "JOIN round r ON pp.round_no = r.round_no " +
+            "JOIN player p2 ON pp.player_key = p2.player_key " +
+            "WHERE p2.country_name = p.country_name " +
+            "AND e.tournament_key = :tournamentKey " + // Hardcoded part
+            "AND e.event_date >= :dateFrom " +         // Hardcoded part
+            "AND e.event_date <= :dateTo " +           // Hardcoded part
+             "AND r.order_num >= 1760 AND r.order_num <= 1899) AS qf, " +
+            "(SELECT COUNT(*) FROM player_prize pp " +
+            "JOIN event e ON pp.event_key = e.event_key " +
+            "JOIN round r ON pp.round_no = r.round_no " +
+            "JOIN player p2 ON pp.player_key = p2.player_key " +
+            "WHERE p2.country_name = p.country_name " +
+            "AND e.tournament_key = :tournamentKey " + // Hardcoded part
+            "AND e.event_date >= :dateFrom " +         // Hardcoded part
+            "AND e.event_date <= :dateTo " +           // Hardcoded part
+             "AND r.order_num >= 1680 AND r.order_num <= 1750) AS l16, " +
+            "(SELECT COUNT(*) FROM player_prize pp " +
+            "JOIN event e ON pp.event_key = e.event_key " +
+            "JOIN round r ON pp.round_no = r.round_no " +
+            "JOIN player p2 ON pp.player_key = p2.player_key " +
+            "WHERE p2.country_name = p.country_name " +
+            "AND e.tournament_key = :tournamentKey " + // Hardcoded part
+            "AND e.event_date >= :dateFrom " +         // Hardcoded part
+            "AND e.event_date <= :dateTo " +           // Hardcoded part
+            "AND r.order_num >= 1510 AND r.order_num <= 1670) AS l32, " +
+            "(SELECT COUNT(*) FROM player_prize pp " +
+            "JOIN event e ON pp.event_key = e.event_key " +
+            "JOIN round r ON pp.round_no = r.round_no " +
+            "JOIN player p2 ON pp.player_key = p2.player_key " +
+            "WHERE p2.country_name = p.country_name " +
+            "AND e.tournament_key = :tournamentKey " + // Hardcoded part
+            "AND e.event_date >= :dateFrom " +         // Hardcoded part
+            "AND e.event_date <= :dateTo " +           // Hardcoded part
+            "AND r.order_num >= 1370 AND r.order_num <= 1500) AS l64, " +
+            "COUNT(*) AS placings " +
+            "FROM player p " +
+            "JOIN player_prize pp ON p.player_key = pp.player_key " +
+            "JOIN event e ON pp.event_key = e.event_key " +
+            "JOIN round r ON pp.round_no = r.round_no " +
+            "WHERE 1 = 1 " +
+            "AND e.tournament_key = :tournamentKey " + // Hardcoded part
+            "AND e.event_date >= :dateFrom " +         // Hardcoded part
+            "AND e.event_date <= :dateTo " +           // Hardcoded part            "AND p.country_name IS NOT NULL " +
+            "AND r.allow_multi_prize = 0 " +
+            "GROUP BY p.country_name " +
+            "ORDER BY wins DESC, ru DESC, sf DESC, qf DESC, l16 DESC, l32 DESC, l64 DESC, placings DESC",
+            nativeQuery = true)
+    List<PlayerTournamnetStatsDTO> getPlayerCountryStats(@Param("tournamentKey") Integer tournamentKey,
+                                                         @Param("dateFrom") String dateFrom,
+                                                         @Param("dateTo") String dateTo);
+
+
+    @Query(value = "SELECT p.player_key as playerKey, p.player_name as playerName, p.country_name AS countryName, " +
+            "(SELECT COUNT(*) FROM player_prize pp " +
+            "JOIN event e ON pp.event_key = e.event_key " +
+            "JOIN round r ON pp.round_no = r.round_no " +
+            "JOIN player p2 ON pp.player_key = p2.player_key " +
+            "WHERE p2.country_name = p.country_name " +
+            "AND e.tournament_key = :tournamentKey " + // Hardcoded part
+            "AND e.event_date >= :dateFrom " +         // Hardcoded part
+            "AND e.event_date <= :dateTo " +           // Hardcoded part
+            "AND r.order_num >= 2300) AS wins, " +
+            "(SELECT COUNT(*) FROM player_prize pp " +
+            "JOIN event e ON pp.event_key = e.event_key " +
+            "JOIN round r ON pp.round_no = r.round_no " +
+            "JOIN player p2 ON pp.player_key = p2.player_key " +
+            "WHERE p2.country_name = p.country_name " +
+            "AND e.tournament_key = :tournamentKey " + // Hardcoded part
+            "AND e.event_date >= :dateFrom " +         // Hardcoded part
+            "AND e.event_date <= :dateTo " +
+            "AND r.order_num >= 2200 AND r.order_num < 2300) AS ru, " +
+            "(SELECT COUNT(*) FROM player_prize pp " +
+            "JOIN event e ON pp.event_key = e.event_key " +
+            "JOIN round r ON pp.round_no = r.round_no " +
+            "JOIN player p2 ON pp.player_key = p2.player_key " +
+            "WHERE p2.country_name = p.country_name " +
+            "AND e.tournament_key = :tournamentKey " + // Hardcoded part
+            "AND e.event_date >= :dateFrom " +         // Hardcoded part
+            "AND e.event_date <= :dateTo " +           // Hardcoded part
+            "AND r.order_num >= 1900 AND r.order_num <= 2000) AS sf, " +
+            "(SELECT COUNT(*) FROM player_prize pp " +
+            "JOIN event e ON pp.event_key = e.event_key " +
+            "JOIN round r ON pp.round_no = r.round_no " +
+            "JOIN player p2 ON pp.player_key = p2.player_key " +
+            "WHERE p2.country_name = p.country_name " +
+            "AND e.tournament_key = :tournamentKey " + // Hardcoded part
+            "AND e.event_date >= :dateFrom " +         // Hardcoded part
+            "AND e.event_date <= :dateTo " +           // Hardcoded part
+            "AND r.order_num >= 1760 AND r.order_num <= 1899) AS qf, " +
+            "(SELECT COUNT(*) FROM player_prize pp " +
+            "JOIN event e ON pp.event_key = e.event_key " +
+            "JOIN round r ON pp.round_no = r.round_no " +
+            "JOIN player p2 ON pp.player_key = p2.player_key " +
+            "WHERE p2.country_name = p.country_name " +
+            "AND e.tournament_key = :tournamentKey " + // Hardcoded part
+            "AND e.event_date >= :dateFrom " +         // Hardcoded part
+            "AND e.event_date <= :dateTo " +           // Hardcoded part
+            "AND r.order_num >= 1680 AND r.order_num <= 1750) AS l16, " +
+            "(SELECT COUNT(*) FROM player_prize pp " +
+            "JOIN event e ON pp.event_key = e.event_key " +
+            "JOIN round r ON pp.round_no = r.round_no " +
+            "JOIN player p2 ON pp.player_key = p2.player_key " +
+            "WHERE p2.country_name = p.country_name " +
+            "AND e.tournament_key = :tournamentKey " + // Hardcoded part
+            "AND e.event_date >= :dateFrom " +         // Hardcoded part
+            "AND e.event_date <= :dateTo " +           // Hardcoded part
+            "AND r.order_num >= 1510 AND r.order_num <= 1670) AS l32, " +
+            "(SELECT COUNT(*) FROM player_prize pp " +
+            "JOIN event e ON pp.event_key = e.event_key " +
+            "JOIN round r ON pp.round_no = r.round_no " +
+            "JOIN player p2 ON pp.player_key = p2.player_key " +
+            "WHERE p2.country_name = p.country_name " +
+            "AND e.tournament_key = :tournamentKey " + // Hardcoded part
+            "AND e.event_date >= :dateFrom " +         // Hardcoded part
+            "AND e.event_date <= :dateTo " +           // Hardcoded part
+            "AND r.order_num >= 1370 AND r.order_num <= 1500) AS l64, " +
+            "COUNT(*) AS placings " +
+            "FROM player p " +
+            "JOIN player_prize pp ON p.player_key = pp.player_key " +
+            "JOIN event e ON pp.event_key = e.event_key " +
+            "JOIN round r ON pp.round_no = r.round_no " +
+            "WHERE 1 = 1 " +
+            "AND e.tournament_key = :tournamentKey " + // Hardcoded part
+            "AND e.event_date >= :dateFrom " +         // Hardcoded part
+            "AND e.event_date <= :dateTo " +           // Hardcoded part            "AND p.country_name IS NOT NULL " +
+            "AND r.allow_multi_prize = 0 " +
+            "GROUP BY p.player_key,player_name,p.country_name " +
+            "ORDER BY wins DESC, ru DESC, sf DESC, qf DESC, l16 DESC, l32 DESC, l64 DESC, placings DESC",
+            nativeQuery = true)
+    List<PlayerTournamnetStatsDTO> getPlayerSuccessStats(@Param("tournamentKey") Integer tournamentKey,
+                                                         @Param("dateFrom") String dateFrom,
+                                                         @Param("dateTo") String dateTo);
+
+
+
+
 }

@@ -1,12 +1,14 @@
 package com.egr.snookerrank.controller;
 
 import com.egr.snookerrank.beans.PeriodType;
+import com.egr.snookerrank.beans.PlayerTournamnetStatsDTO;
 import com.egr.snookerrank.beans.TournamnetStatsOption;
 import com.egr.snookerrank.bl.SnookerStats;
 import com.egr.snookerrank.dto.*;
 import com.egr.snookerrank.dto.response.*;
 import com.egr.snookerrank.model.Player;
 import com.egr.snookerrank.service.PlayerService;
+import com.egr.snookerrank.service.PlayerTournamnetStatsServices;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -26,10 +28,12 @@ public class PlayerController {
 
     private final PlayerService playerService;
     private final SnookerStats snookerStats;
+    private final PlayerTournamnetStatsServices playerTournamnetStatsServices;
 
-    public PlayerController(PlayerService playerService, SnookerStats snookerStats) {
+    public PlayerController(PlayerService playerService, SnookerStats snookerStats,PlayerTournamnetStatsServices playerTournamnetStatsServices) {
         this.playerService = playerService;
         this.snookerStats  = snookerStats;
+        this.playerTournamnetStatsServices = playerTournamnetStatsServices;
     }
 
     @Operation(
@@ -400,6 +404,36 @@ public class PlayerController {
         List<PlayerStats> stats= playerService.playerDetailStats(playerKey,rankKey);
 
         return new RestApiResponse<>("SUCCESS", "Data fetched successfully", stats);
+    }
+
+    @Operation(
+            summary = "playerTournamamnetStatsMetaData",
+            description = "Refer to TournamentPlayerStats.aspx page.",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "PlayerDetailStats"),
+            }
+    )
+    @GetMapping("/playerTournamamnetStatsMetaData")
+    public RestApiResponse< Map<Integer, String>> playerTournamamnetStatsMetaData() {
+
+        Map<Integer, String> metaData =  playerTournamnetStatsServices.getRankings();
+
+        return new RestApiResponse<>("SUCCESS", "Data fetched successfully", metaData);
+    }
+
+    @Operation(
+            summary = "playerTournamamnetStats",
+            description = "Refer to TournamentPlayerStats.aspx page.",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "PlayerDetailStats"),
+            }
+    )
+    @GetMapping("/playerTournamamnetStats")
+    public RestApiResponse<List<PlayerTournamnetStatsDTO>> playerTournamamnetStats(@RequestParam Integer tournamnetKey,@RequestParam Integer statsKey, @RequestParam String dateFrom, @RequestParam String dateTo) {
+
+        List<PlayerTournamnetStatsDTO> statsDTOS =  playerTournamnetStatsServices.getStats(tournamnetKey,statsKey,dateFrom,dateTo);
+
+        return new RestApiResponse<>("SUCCESS", "Data fetched successfully", statsDTOS);
     }
 
     }

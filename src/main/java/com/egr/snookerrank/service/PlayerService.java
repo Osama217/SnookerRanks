@@ -36,7 +36,6 @@ public class PlayerService {
     private final PlayerStatsRepository playerStatsRepository;
     private final RankTextRepository rankTextRepository;
 
-
     public List<TopPlayersDTO> getTopPlayers(@RequestParam int count) {
         int limit = (count > 0) ? count : 10;  // Default to 10 if count is invalid
         TopPlayersDTO dto = new TopPlayersDTO();
@@ -307,6 +306,7 @@ public class PlayerService {
                                     .filter(match -> match.getRoundNo().equals(prize.getRoundNo())) // Match roundNo
                                     .collect(Collectors.toList()) // Collect matched results
                     ))
+                    .filter(prize ->null != prize.getPrizeMoney() && CommonUtilities.isGreaterThan(prize.getPrizeMoney(),0) && !prize.getMatchResults().isEmpty())
                     .collect(Collectors.toList());
         }
         return new EventResultsDTO(tournamentCompleteName, prizeFundsDTOList);
@@ -316,6 +316,7 @@ public class PlayerService {
 
     public List<EventListDTO> getEventList(Integer year) {
         List<EventListDTO> eventList = playerRepository.getEventList(year);
+        eventList = eventList.stream().filter(event->CommonUtilities.isGreaterThan(event.getPrizeFund(),0)).toList();
         return eventList;
     }
 
@@ -411,6 +412,8 @@ public class PlayerService {
         }
         List<PlayerH2HStatsDTO> H2hList = playerRepository.getCompleteH2HList(playerId);
         h2HListDTO.setPlayerH2HStats(H2hList);
+        h2HListDTO.getPlayerH2HStats().forEach(h2H ->
+                h2H.setPcnt(CommonUtilities.roundToTwoDecimals(h2H.getPcnt())));
         h2HListDTO.setName(player.getPlayerName());
         return h2HListDTO;
 
@@ -420,7 +423,7 @@ public class PlayerService {
         List<PlayerDTO> playerDTOList = new ArrayList<>();
         List<Player> players = playerRepository.findAllH2HPlayers();
         for (Player p : players) {
-            PlayerDTO playerDTO = new PlayerDTO(p.getPlayerKey(), p.getPlayerName(), p.getFdi(), p.getCountryName(), p.getAge());
+            PlayerDTO playerDTO = new PlayerDTO(p.getPlayerKey(), p.getPlayerName(), CommonUtilities.roundToTwoDecimals(p.getFdi()), p.getCountryName(), p.getAge());
             playerDTOList.add(playerDTO);
 
         }
