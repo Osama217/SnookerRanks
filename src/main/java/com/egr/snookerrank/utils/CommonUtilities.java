@@ -5,6 +5,7 @@ import java.math.RoundingMode;
 import java.time.Year;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 public class CommonUtilities {
     public static List<Integer> generateYearList() {
@@ -25,5 +26,38 @@ public class CommonUtilities {
         return BigDecimal.valueOf(value)
                 .setScale(2, RoundingMode.HALF_UP)
                 .doubleValue();
+    }
+
+    public static int stat2Value(Map<String, Object> statsMap, String fields) {
+        int total = 0;
+        if(null != fields) {
+            String[] fieldNames = fields.split("\\+");
+
+            for (String fieldName : fieldNames) {
+                fieldName = fieldName.trim(); // clean up spaces
+                total += safeInt(statsMap.get(fieldName));
+            }
+        }
+
+        return total;
+    }
+
+    private static int safeInt(Object value) {
+        if (value == null) return 0;
+
+        if (value instanceof Integer) {
+            return (Integer) value;
+        }
+
+        if (value instanceof Double) {
+            double d = (Double) value;
+            return (int) d; // cut decimals if present
+        }
+
+        try {
+            return Integer.parseInt(value.toString());
+        } catch (NumberFormatException e) {
+            return 0;
+        }
     }
 }

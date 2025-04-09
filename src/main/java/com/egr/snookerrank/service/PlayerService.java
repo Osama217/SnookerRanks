@@ -652,7 +652,7 @@ public class PlayerService {
             )).collect(Collectors.toList());
         } else {
           playerDTOS =  playerRepository.findPlayers(rankKey,country,isWomen?1:null,maxAge);
-
+          playerDTOS.forEach(player-> player.setFdi(CommonUtilities.roundToTwoDecimals(player.getFdi())));
         }
 
         rankingDTO.setOrderOfMerit(orderOfMeritDTOS);
@@ -693,6 +693,83 @@ public class PlayerService {
 
         }
         return null;
+    }
+
+    public MatchPlayerStatsDTO getMatchPlayerStats(Integer matchKey, Integer winnerKey, Integer losserKey) {
+        MatchPlayerStatsDTO dto = null;
+        List<Map<String, Object>> player1List =    playerRepository.getMatchPlayerStats(matchKey,winnerKey);
+        List<Map<String, Object>> player2List =    playerRepository.getMatchPlayerStats(matchKey,losserKey);
+     List<RankFields> ranks = playerRepository.getTalentPortalRanks();
+        Map <String,String> player1result = getResult(player1List,ranks);
+        Map <String,String> player2result = getResult(player2List,ranks);
+        dto = new MatchPlayerStatsDTO(player1result,player2result);
+        return dto;
+
+    }
+
+    private Map <String,String> getResult(List<Map<String, Object>> data, List<RankFields> ranks) {
+    Map <String,String> map= new LinkedHashMap<>();
+        for (RankFields rank : ranks) {
+            String result = "";
+            Double nCompare1;
+            switch (rank.getStatType()) {
+                case "D":
+                    if (CommonUtilities.stat2Value(data.getFirst(),rank.getField2()) !=0 && CommonUtilities.stat2Value(data.getFirst(),rank.getField2()) != -1){
+                        nCompare1 = getDouble(data.getFirst().get(rank.getField1())) / getDouble(data.getFirst().get(rank.getField2()));
+                        result = String.format("%.2f", Math.round(nCompare1 * 100.0) / 100.0);
+                    }
+                    break;
+
+                case "A":
+                    if (CommonUtilities.stat2Value(data.getFirst(),rank.getField2()) !=0 && CommonUtilities.stat2Value(data.getFirst(),rank.getField2()) != -1){
+                        nCompare1 = getDouble(data.getFirst().get(rank.getField1())) / getDouble(data.getFirst().get(rank.getField2()));
+                        result = String.format("%.2f", Math.round(nCompare1 * 3.0 * 100.0) / 100.0);
+                    }
+                    break;
+
+                case "P":
+                    if (CommonUtilities.stat2Value(data.getFirst(),rank.getField2()) !=0 && CommonUtilities.stat2Value(data.getFirst(),rank.getField2()) != -1){
+                        nCompare1 = getDouble(data.getFirst().get(rank.getField1())) / getDouble(data.getFirst().get(rank.getField2()));
+                        result = String.format("%.2f", ((Math.round(nCompare1 * 10000.0) / 10000.0)) * 100) + "%";
+                    }
+                    break;
+
+                case "X":
+                    if (CommonUtilities.stat2Value(data.getFirst(),rank.getField1()) !=0 && CommonUtilities.stat2Value(data.getFirst(),rank.getField1()) != -1){
+                        result = String.valueOf(data.getFirst().get(rank.getField1()));
+
+                    }
+                    break;
+                default:
+                    result = String.valueOf(data.getFirst().get(rank.getField1()));
+                    break;
+
+            }
+            map.putIfAbsent(rank.getRankName(),result);
+        }
+        return map;
+    }
+
+
+
+    public Double getDouble(Object value) {
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof Double) {
+            return (Double) value;
+        }
+        if (value instanceof Integer) {
+            return ((Integer) value).doubleValue();
+        }
+        if (value instanceof Number) {
+            return ((Number) value).doubleValue(); // handles other numeric types too
+        }
+        try {
+            return Double.parseDouble(value.toString());
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 }
 

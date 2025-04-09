@@ -32,13 +32,13 @@ public class PlayerTournamnetStatsServices {
         Map<Integer, String> rankings = new LinkedHashMap<>();
 
         rankings.put(1, "Prize Money");
-        rankings.put(2, "Tournament Wins");
+        rankings.put(7, "Tournament Wins");
         rankings.put(3, "Tournament Cashes");
-        rankings.put(4, "Tournament Appearances");
+        rankings.put(2, "Tournament Appearances");
         rankings.put(5, "All Time Rank Pts");
-        rankings.put(6, "Player Success");
-        rankings.put(7, "Country Success");
-        rankings.put(8, "Matches Played");
+        rankings.put(10, "Player Success");
+        rankings.put(4, "Country Success");
+        rankings.put(11, "Matches Played");
 
         String sql = "SELECT rank_text_key, rank_name FROM rank_text WHERE is_match_stat = 1";
         List<Map<String, Object>> results = jdbcTemplate.queryForList(sql);

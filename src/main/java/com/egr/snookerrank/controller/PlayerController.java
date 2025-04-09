@@ -436,4 +436,17 @@ public class PlayerController {
         return new RestApiResponse<>("SUCCESS", "Data fetched successfully", statsDTOS);
     }
 
+    @Operation(
+            summary = "getMatchPlayerStats",
+            description = "Refer to http://snookerorakel.com/MatchStats.aspx?matchKey=83937.",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "playerTournamamnetStats"),
+            }
+    )
+    @GetMapping("/getMatchPlayerStats")
+    public RestApiResponse<MatchPlayerStatsDTO> getMatchPlayerStats(@RequestParam Integer matchKey,@RequestParam Integer winnerKey, @RequestParam Integer losserKey) {
+        MatchPlayerStatsDTO result = playerService.getMatchPlayerStats(matchKey,winnerKey,losserKey);
+        return new RestApiResponse<>("SUCCESS", "Data fetched successfully", result);
+
+    }
     }

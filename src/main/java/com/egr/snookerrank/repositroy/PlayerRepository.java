@@ -709,6 +709,7 @@ public interface PlayerRepository extends JpaRepository<Player, Integer> {
                                                          @Param("dateTo") String dateTo);
 
 
-
+    @Query(value = "SELECT * FROM match_player_stats WHERE match_key = :matchKey AND player_key = :playerKey", nativeQuery = true)
+    List<Map<String, Object>> getMatchPlayerStats(@Param("matchKey") Integer matchKey, @Param("playerKey") Integer playerKey);
 
 }
