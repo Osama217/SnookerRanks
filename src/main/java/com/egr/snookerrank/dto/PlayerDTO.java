@@ -18,7 +18,7 @@ public class PlayerDTO {
     private String forename;
     private String surname;
     private String countryName;
-    private Double fdi;
+    private Number fdi;
     private Integer fdiMatches;
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
     private LocalDateTime fdiLastDate;

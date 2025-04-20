@@ -652,7 +652,7 @@ public class PlayerService {
             )).collect(Collectors.toList());
         } else {
           playerDTOS =  playerRepository.findPlayers(rankKey,country,isWomen?1:null,maxAge);
-          playerDTOS.forEach(player-> player.setFdi(CommonUtilities.roundToTwoDecimals(player.getFdi())));
+          playerDTOS.forEach(player-> player.setFdi(CommonUtilities.safeInt(player.getFdi())));
         }
 
         rankingDTO.setOrderOfMerit(orderOfMeritDTOS);

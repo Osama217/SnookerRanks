@@ -28,6 +28,7 @@ public class CommonUtilities {
                 .doubleValue();
     }
 
+
     public static int stat2Value(Map<String, Object> statsMap, String fields) {
         int total = 0;
         if(null != fields) {
@@ -42,7 +43,7 @@ public class CommonUtilities {
         return total;
     }
 
-    private static int safeInt(Object value) {
+    public static int safeInt(Object value) {
         if (value == null) return 0;
 
         if (value instanceof Integer) {
