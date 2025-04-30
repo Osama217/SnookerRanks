@@ -712,4 +712,23 @@ public interface PlayerRepository extends JpaRepository<Player, Integer> {
     @Query(value = "SELECT * FROM match_player_stats WHERE match_key = :matchKey AND player_key = :playerKey", nativeQuery = true)
     List<Map<String, Object>> getMatchPlayerStats(@Param("matchKey") Integer matchKey, @Param("playerKey") Integer playerKey);
 
+    @Query(value = "SELECT top 12 e.event_key as eventKey,t.tournament_name as tournamnetName," +
+            "FORMAT(e.event_date,'dd-MM-yyyy')as date,"+
+            "YEAR(e.event_date) as year,"+
+            "p.player_name winnerName," +
+            "p.player_key winnerKey," +
+            "p2.player_name loserName," +
+            "p2.player_key loserKey," +
+            "m.winner_score as winnerScore," +
+            "m.loser_score as loserScore," +
+            "e.prize_fund as prizeFund " +
+            "FROM [event] e LEFT JOIN player_prize pp ON e.event_key=pp.event_key AND pp.round_no=21 " +
+            "join tournament t on e.tournament_key=t.tournament_key " +
+            "LEFT JOIN player p ON pp.player_key=p.player_key " +
+            "LEFT JOIN player_prize pp2 ON e.event_key=pp2.event_key AND pp2.round_no=20" +
+            "LEFT JOIN player p2 ON pp2.player_key=p2.player_key " +
+            "LEFT JOIN match m ON e.event_key=m.event_key AND m.round_no=20 AND (m.winner_key=p.player_key OR m.winner_key=p2.player_key) " +
+            "where winner_key is not null or loser_key is not null " +
+            "ORDER BY event_date DESC",nativeQuery = true)
+    List<MatchResultDTO> getLatestResult();
 }

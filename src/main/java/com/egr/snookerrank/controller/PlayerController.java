@@ -50,6 +50,19 @@ public class PlayerController {
         return new RestApiResponse<>("SUCCESS", "Data fetched successfully", topPlayers);
     }
     @Operation(
+            summary = "Get latest result",
+            description = "Fetch top 12  latest result",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "User found"),
+            }
+    )
+    @GetMapping("/latestResult")
+    public RestApiResponse<List<MatchResultDTO>> getLatestResult() {
+        List<MatchResultDTO> topLatestPlayers = playerService.getLatestResult();
+        return new RestApiResponse<>("SUCCESS", "Data fetched successfully", topLatestPlayers);
+    }
+
+    @Operation(
             summary = "Order of Merit",
             description = "Get Order of Merit",
             responses = {

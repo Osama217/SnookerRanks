@@ -771,6 +771,10 @@ public class PlayerService {
             return null;
         }
     }
+
+    public List<MatchResultDTO> getLatestResult() {
+         return playerRepository.getLatestResult();
+    }
 }
 
 
