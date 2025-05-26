@@ -591,12 +591,12 @@ public class PlayerService {
 
                 case "X":
                     if (null != data.getFirst().get(rank.getField1()) && data.getFirst().get(rank.getField1()) != -1) {
-                        result = String.valueOf(data.getFirst().get(rank.getField1()));
+                        result = null != data.getFirst().get(rank.getField1()) ?String.valueOf(data.getFirst().get(rank.getField1())) : "";
 
                     }
                     break;
                 default:
-                    result = String.valueOf(data.getFirst().get(rank.getField1()));
+                    result = null != data.getFirst().get(rank.getField1())   ? String.valueOf(data.getFirst().get(rank.getField1())) :"";
                     break;
             }
             finalResponseBasedOnDate.add(new RankDetails(rank.getRankKey(),rank.getRankName(),result));
