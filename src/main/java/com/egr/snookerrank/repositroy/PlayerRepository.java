@@ -297,11 +297,13 @@ public interface PlayerRepository extends JpaRepository<Player, Integer> {
             nativeQuery = true)
     List<TournamnetStats> getMostAppearances(@Param("tournamentKey") Integer tournamentKey);
 
-    @Query(value = "SELECT TOP 1 p.player_key as playerKey, p.player_name as playerName, null,DATEDIFF(YEAR, p.dob, GETDATE()) as count, 'Youngest Winner' as roundLabel FROM player_prize pp JOIN player p ON pp.player_key=p.player_key JOIN event e ON pp.event_key=e.event_key WHERE round_no=21 AND tournament_key=:tournamentKey AND NOT dob IS NULL ORDER BY DATEDIFF(day,dob,event_date)",
+    @Query(value = "SELECT TOP 1 p.player_key AS playerKey, p.player_name AS playerName, NULL,DATEDIFF(YEAR, dob, event_date) - CASE WHEN DATEADD(YEAR, DATEDIFF(YEAR, dob, event_date), dob) > event_date THEN 1 ELSE 0 END AS count," +
+            "'Youngest Winner' as roundLabel FROM player_prize pp JOIN player p ON pp.player_key=p.player_key JOIN event e ON pp.event_key=e.event_key WHERE round_no=21 AND tournament_key=:tournamentKey AND NOT dob IS NULL ORDER BY DATEDIFF(day,dob,event_date)",
             nativeQuery = true)
     List<TournamnetStats> getYoungestWinner(@Param("tournamentKey") Integer tournamentKey);
 
-    @Query(value = "SELECT TOP 1 p.player_key as playerKey, p.player_name as playerName ,null,DATEDIFF(YEAR, p.dob, GETDATE()) as count, 'Oldest Winner' as roundLabel FROM player_prize pp JOIN player p ON pp.player_key=p.player_key JOIN event e ON pp.event_key=e.event_key WHERE round_no=21 AND tournament_key=:tournamentKey AND NOT dob IS NULL ORDER BY DATEDIFF(day,dob,event_date) DESC",
+    @Query(value = "SELECT TOP 1 p.player_key AS playerKey, p.player_name AS playerName, NULL,DATEDIFF(YEAR, dob, event_date) - CASE WHEN DATEADD(YEAR, DATEDIFF(YEAR, dob, event_date), dob) > event_date THEN 1 ELSE 0 END AS count," +
+            "'Oldest Winner' as roundLabel FROM player_prize pp JOIN player p ON pp.player_key=p.player_key JOIN event e ON pp.event_key=e.event_key WHERE round_no=21 AND tournament_key=:tournamentKey AND NOT dob IS NULL ORDER BY DATEDIFF(day,dob,event_date) DESC",
             nativeQuery = true)
     List<TournamnetStats> getOldestWinner(@Param("tournamentKey") Integer tournamentKey);
 
