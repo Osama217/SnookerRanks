@@ -32,8 +32,8 @@ jobs:
         with:
           aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          application_name: YourAppNameHere
-          environment_name: YourEnvNameHere
-            region: ${{ vars.AWS_REGION }}
+          application_name: SnookerRank-RestAPP
+          environment_name: SnookerRank-STG-RestAPP
+          region: ${{ vars.AWS_REGION }}
           version_label: v-${{ github.run_number }}
           deployment_package: deploy/app.jar
