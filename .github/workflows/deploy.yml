@@ -8,6 +8,7 @@ on:
 jobs:
   build-deploy:
     runs-on: ubuntu-latest
+    environment: SnookerRank_AWS_Backend
 
     steps:
       - name: Checkout Code
