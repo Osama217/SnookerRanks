@@ -24,7 +24,7 @@ jobs:
 
       - name: Generate deployment package
         run: |
-          mkdir deploy
+          mkdir -p deploy
           cp target/*.jar deploy/app.jar
 
       - name: Deploy to AWS Elastic Beanstalk
