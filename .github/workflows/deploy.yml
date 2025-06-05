@@ -1,0 +1,39 @@
+name: Build and Deploy to Elastic Beanstalk
+
+on:
+  push:
+    branches:
+      - STG
+
+jobs:
+  build-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Build with Maven
+        run: mvn clean install
+
+      - name: Generate deployment package
+        run: |
+          mkdir deploy
+          cp target/*.jar deploy/app.jar
+
+      - name: Deploy to AWS Elastic Beanstalk
+        uses: einaregilsson/beanstalk-deploy@v21
+        with:
+          aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          application_name: YourAppNameHere
+          environment_name: YourEnvNameHere
+            region: ${{ vars.AWS_REGION }}
+          version_label: v-${{ github.run_number }}
+          deployment_package: deploy/app.jar
