@@ -1,0 +1,40 @@
+name: Build and Deploy to Elastic Beanstalk
+
+on:
+  push:
+    branches:
+      - STG
+
+jobs:
+  build-deploy:
+    runs-on: ubuntu-latest
+    environment: SnookerRank_AWS_Backend
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Build with Maven
+        run: mvn clean install
+
+      - name: Generate deployment package
+        run: |
+          mkdir -p deploy
+          cp target/*.jar deploy/app.jar
+
+      - name: Deploy to AWS Elastic Beanstalk
+        uses: einaregilsson/beanstalk-deploy@v21
+        with:
+          aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          application_name: SnookerRank-RestAPP
+          environment_name: SnookerRank-STG-RestAPP
+          region: eu-west-2  # <- or use ${{ vars.AWS_REGION }} if set
+          version_label: v-${{ github.run_number }}
+          deployment_package: deploy/app.jar
