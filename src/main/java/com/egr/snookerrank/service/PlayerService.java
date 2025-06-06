@@ -102,11 +102,13 @@ public class PlayerService {
 
     public List<PlayerStats> fetchPlayerStats(LocalDate dDateFrom, LocalDate dDateTo, Integer eventKey, TournamentDTO tournament, Integer year, Integer rankKey, Integer minMatches) {
         List<Object[]> result = null;
+        RankText rankText;
         if (rankKey.equals(50) || rankKey.equals(51) || rankKey.equals(52) || rankKey.equals(53) || rankKey.equals(54)) {
+           rankText = new RankText();
             result = playerStatsRepository.findPlayersWithFilters(dDateFrom, dDateTo, eventKey, tournament, year, rankKey);
 
         } else {
-            RankText rankText = rankTextRepository.findByRankTextKey(rankKey);
+             rankText = rankTextRepository.findByRankTextKey(rankKey);
             if (rankText != null && rankText.isMatchStat()) {
                 result = playerStatsRepository.findPlayersWithStatsRankingFilters(rankText.getStatType(), rankText.getField1(), rankText.getField2(),
                         tournament, year, eventKey, dDateFrom, dDateTo, minMatches, rankText.isOrderAsc(), 500);
@@ -114,15 +116,23 @@ public class PlayerService {
         }
         List<PlayerStats> ranksDTOList = result.stream().map(row -> {
             if (row.length > 4) {
+                Number n1 =  null;
+                if(row.length > 5 && row[5] != null ) {
+                   if(rankText.getStatType().equals("P")) {
+                        n1 = new BigDecimal(((Number) row[5]).doubleValue() *100).setScale(2, RoundingMode.HALF_UP);
+                    }else{
+                       n1 = new BigDecimal(((Number) row[5]).doubleValue()).setScale(2, RoundingMode.HALF_UP);
+                   }
+                }
+
                 return new PlayerStats(
                         (Integer) row[0],
                         (String) row[1],
                         (String) row[2],
-                        row.length > 5 && row[5] != null ?
-                                new BigDecimal(((Number) row[5]).doubleValue()).setScale(2, RoundingMode.HALF_UP)
-                                : null,
+                        n1,
                         (Number) row[3],
-                        (Number) row[4]
+                        (Number) row[4],
+                         ((Number) row[3]).intValue() + "/" + ((Number) row[4]).intValue()
                 );
             } else {
                 return new PlayerStats(
@@ -256,7 +266,7 @@ public class PlayerService {
             List<PlayerMatchTournamentDTO> matchPrize = playerRepository.findMatchesByPlayer(key);
             if (!matchPrize.isEmpty()) {
                 matchPrize.forEach(match -> {
-                            match.setScore(match.getLoserScore() + " V " + match.getWinnerScore());
+                            match.setScore(match.getWinnerScore() + " V " + match.getLoserScore());
                             if (match.getWinnerKey().equals(key))
                                 match.setResult("Won");
                             else
@@ -359,6 +369,8 @@ public class PlayerService {
             stats.addAll(playerRepository.getOldestWinner(tournamentKey));
             stats.addAll(playerRepository.getMostCenturyinTour(tournamentKey));
             stats.addAll(playerRepository.getMostCenturyinMatch(tournamentKey));
+            stats.addAll(playerRepository.getMost147sInTournamnet(tournamentKey));
+
             stats.forEach(stat -> {
                 highest.putIfAbsent(stat.getRoundLabel(), 0);
                 Integer max = highest.get(stat.getRoundLabel());
@@ -375,7 +387,7 @@ public class PlayerService {
                         Integer max = highest.get(stat.getRoundLabel());
                         switch (stat.getRoundLabel()) {
                             case "Most Wins", "Most Finals", "Most Quarter Finals", "Most Semi Finals"
-                            , "Most Appearances", "Most Century Breaks in a Match" -> {
+                            , "Most Appearances", "Most Century Breaks in a Match" ,"Most 147s" -> {
                                 if (Objects.equals(stat.getCount(), max)) {
                                     if (statsDTO.getAmount().isEmpty()) {
                                         statsDTO.setAmount(stat.getCount() + " by " + stat.getPlayerName());
@@ -475,7 +487,7 @@ public class PlayerService {
         head2HeadchancesToWinmatchResultDTO.setRecentMeetings(stats);
         List<MatchResultsWithOrder> statswithOrder = playerRepository.findMatchStatsWithOrder(player1Key, player2Key);
         statswithOrder.forEach(stat -> {
-            stat.setScore(stat.getLoserScore() + " V " + stat.getWinnerScore());
+            stat.setScore(stat.getWinnerScore() + " V " + stat.getLoserScore());
             if (stat.getLoserKey().equals(player1Key)) {
                 stat.setResult("Lost");
             } else {

@@ -78,6 +78,9 @@ public class PlayerStatsRepositoryImpl implements PlayerStatsRepository {
         // Base Query
         StringBuilder sql = new StringBuilder("SELECT TOP " + topLimit + " p.player_key, p.player_name, p.country_name, ");
         // Determine main statistical field logic
+        if(null == minMatches || minMatches <= 0){
+            minMatches = 10;
+        }
         if("D".equals(statType) || "A".equals(statType)|| "P".equals(statType))
             sql.append("SUM(").append(field1).append("), SUM(").append(field2).append("), ");
         String mainStatField = determineMainStatField(statType, field1, field2);

@@ -316,6 +316,9 @@ public interface PlayerRepository extends JpaRepository<Player, Integer> {
             nativeQuery = true)
     List<TournamnetStats> getMostCenturyinMatch(@Param("tournamentKey") Integer tournamentKey);
 
+    @Query(value = "SELECT TOP 1 player_key as playerKey,player_name as playerName,Year(event_date) as year,(SELECT ISNULL(SUM(max_breaks),0)  FROM match m JOIN match_player_stats mps ON m.match_key=mps.match_key WHERE mps.player_key=p.player_key AND max_breaks>0 AND event_key=e.event_key) as count, 'Most 147s' as roundLabel  FROM player p,event e WHERE e.tournament_key=:tournamentKey ORDER BY count DESC",
+            nativeQuery = true)
+    List<TournamnetStats> getMost147sInTournamnet(@Param("tournamentKey") Integer tournamentKey);
 
 
     String winner = "(SELECT COUNT(*) FROM match WHERE winner_key=:playerId AND loser_key=p.player_key AND is_bye=0 AND (winner_score > loser_score OR winner_score = 0))";
@@ -442,7 +445,7 @@ public interface PlayerRepository extends JpaRepository<Player, Integer> {
 
 
     @Query(value = "SELECT p.player_key AS playerKey, p.player_name AS playerName, p.country_name AS countryName, " +
-            "ROUND(SUM(prize_money * conversion_rate), 0) AS stats " +
+            "LTRIM(STR(ROUND(SUM(prize_money * conversion_rate), 0) ,20,0 ))AS stats " +
             "FROM player p " +
             "JOIN player_prize pp ON p.player_key = pp.player_key " +
             "JOIN event e ON pp.event_key = e.event_key " +
@@ -459,7 +462,7 @@ public interface PlayerRepository extends JpaRepository<Player, Integer> {
                                                          @Param("dateFrom") String dateFrom,
                                                          @Param("dateTo") String dateTo);
 
-    @Query(value = "SELECT p.player_key playerKey, p.player_name playerName, p.country_name countryName, COUNT(*) stats " +
+    @Query(value = "SELECT p.player_key playerKey, p.player_name playerName, p.country_name countryName,CAsT( COUNT(*) as varchar)stats " +
             "FROM player p JOIN player_prize pp ON p.player_key=pp.player_key " +
             "JOIN round r ON pp.round_no=r.round_no " +
             "JOIN event e ON pp.event_key=e.event_key " +
@@ -474,7 +477,7 @@ public interface PlayerRepository extends JpaRepository<Player, Integer> {
                                                          @Param("dateFrom") String dateFrom,
                                                          @Param("dateTo") String dateTo);
 
-    @Query(value = "SELECT p.player_key playerKey, p.player_name playerName, p.country_name countryName, COUNT(*) stats " +
+    @Query(value = "SELECT p.player_key playerKey, p.player_name playerName, p.country_name countryName, CAST(COUNT(*) as varchar)stats " +
             "FROM player p JOIN match m ON p.player_key=m.winner_key OR p.player_key=m.loser_key " +
             "JOIN round r ON m.round_no=r.round_no " +
             "JOIN event e ON m.event_key=e.event_key " +
@@ -489,7 +492,7 @@ public interface PlayerRepository extends JpaRepository<Player, Integer> {
                                                     @Param("dateFrom") String dateFrom,
                                                     @Param("dateTo") String dateTo);
 
-    @Query(value = "SELECT p.player_key playerKey, p.player_name playerName, p.country_name countryName, COUNT(*) stats " +
+    @Query(value = "SELECT p.player_key playerKey, p.player_name playerName, p.country_name countryName, CAST(COUNT(*) as varchar) stats " +
             "FROM player p JOIN player_prize pp ON p.player_key=pp.player_key " +
             "JOIN round r ON pp.round_no=r.round_no " +
             "JOIN event e ON pp.event_key=e.event_key " +
@@ -506,7 +509,7 @@ public interface PlayerRepository extends JpaRepository<Player, Integer> {
                                                    @Param("dateTo") String dateTo);
 
     @Query(value = "SELECT p.player_key AS playerKey, p.player_name AS playerName, p.country_name AS countryName, " +
-            "((CONVERT(float, points_scored) * 3) / CONVERT(float, Snooker_thrown)) AS stats, " +
+            "Cast( ((CONVERT(float, points_scored) * 3) / CONVERT(float, Snooker_thrown)) as varchar)AS stats, " +
             "FROM player p " +
             "JOIN match m ON p.player_key = m.winner_key " +
             "JOIN event e ON m.event_key = e.event_key " +
@@ -523,7 +526,7 @@ public interface PlayerRepository extends JpaRepository<Player, Integer> {
                                                     @Param("dateTo") String dateTo);
 
     @Query(value = "SELECT p.player_key AS playerKey, p.player_name AS playerName, p.country_name AS countryName, " +
-            "COUNT(*) AS numWins " +
+            "Cast(COUNT(*) as varchar)AS numWins " +
             "FROM player p " +
             "JOIN player_prize pp ON p.player_key = pp.player_key " +
             "JOIN event e ON pp.event_key = e.event_key " +
@@ -634,7 +637,7 @@ public interface PlayerRepository extends JpaRepository<Player, Integer> {
             "JOIN event e ON pp.event_key = e.event_key " +
             "JOIN round r ON pp.round_no = r.round_no " +
             "JOIN player p2 ON pp.player_key = p2.player_key " +
-            "WHERE p2.country_name = p.country_name " +
+            "WHERE p2.player_name = p.player_name " +
             "AND e.tournament_key = :tournamentKey " + // Hardcoded part
             "AND e.event_date >= :dateFrom " +         // Hardcoded part
             "AND e.event_date <= :dateTo " +           // Hardcoded part
@@ -643,7 +646,7 @@ public interface PlayerRepository extends JpaRepository<Player, Integer> {
             "JOIN event e ON pp.event_key = e.event_key " +
             "JOIN round r ON pp.round_no = r.round_no " +
             "JOIN player p2 ON pp.player_key = p2.player_key " +
-            "WHERE p2.country_name = p.country_name " +
+            "WHERE p2.player_name = p.player_name " +
             "AND e.tournament_key = :tournamentKey " + // Hardcoded part
             "AND e.event_date >= :dateFrom " +         // Hardcoded part
             "AND e.event_date <= :dateTo " +
@@ -652,7 +655,7 @@ public interface PlayerRepository extends JpaRepository<Player, Integer> {
             "JOIN event e ON pp.event_key = e.event_key " +
             "JOIN round r ON pp.round_no = r.round_no " +
             "JOIN player p2 ON pp.player_key = p2.player_key " +
-            "WHERE p2.country_name = p.country_name " +
+            "WHERE p2.player_name = p.player_name " +
             "AND e.tournament_key = :tournamentKey " + // Hardcoded part
             "AND e.event_date >= :dateFrom " +         // Hardcoded part
             "AND e.event_date <= :dateTo " +           // Hardcoded part
@@ -661,7 +664,7 @@ public interface PlayerRepository extends JpaRepository<Player, Integer> {
             "JOIN event e ON pp.event_key = e.event_key " +
             "JOIN round r ON pp.round_no = r.round_no " +
             "JOIN player p2 ON pp.player_key = p2.player_key " +
-            "WHERE p2.country_name = p.country_name " +
+            "WHERE p2.player_name = p.player_name " +
             "AND e.tournament_key = :tournamentKey " + // Hardcoded part
             "AND e.event_date >= :dateFrom " +         // Hardcoded part
             "AND e.event_date <= :dateTo " +           // Hardcoded part
@@ -670,7 +673,7 @@ public interface PlayerRepository extends JpaRepository<Player, Integer> {
             "JOIN event e ON pp.event_key = e.event_key " +
             "JOIN round r ON pp.round_no = r.round_no " +
             "JOIN player p2 ON pp.player_key = p2.player_key " +
-            "WHERE p2.country_name = p.country_name " +
+            "WHERE p2.player_name = p.player_name " +
             "AND e.tournament_key = :tournamentKey " + // Hardcoded part
             "AND e.event_date >= :dateFrom " +         // Hardcoded part
             "AND e.event_date <= :dateTo " +           // Hardcoded part
@@ -679,7 +682,7 @@ public interface PlayerRepository extends JpaRepository<Player, Integer> {
             "JOIN event e ON pp.event_key = e.event_key " +
             "JOIN round r ON pp.round_no = r.round_no " +
             "JOIN player p2 ON pp.player_key = p2.player_key " +
-            "WHERE p2.country_name = p.country_name " +
+            "WHERE p2.player_name = p.player_name " +
             "AND e.tournament_key = :tournamentKey " + // Hardcoded part
             "AND e.event_date >= :dateFrom " +         // Hardcoded part
             "AND e.event_date <= :dateTo " +           // Hardcoded part
@@ -688,7 +691,7 @@ public interface PlayerRepository extends JpaRepository<Player, Integer> {
             "JOIN event e ON pp.event_key = e.event_key " +
             "JOIN round r ON pp.round_no = r.round_no " +
             "JOIN player p2 ON pp.player_key = p2.player_key " +
-            "WHERE p2.country_name = p.country_name " +
+            "WHERE p2.player_name = p.player_name " +
             "AND e.tournament_key = :tournamentKey " + // Hardcoded part
             "AND e.event_date >= :dateFrom " +         // Hardcoded part
             "AND e.event_date <= :dateTo " +           // Hardcoded part

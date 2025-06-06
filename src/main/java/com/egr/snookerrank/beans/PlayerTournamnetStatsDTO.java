@@ -14,7 +14,7 @@ public class PlayerTournamnetStatsDTO {
     private Integer playerKey;
     private String playerName;
     private String countryName;
-    private Number stats;
+    private String stats;
     private Number stats2;
 
 
@@ -29,14 +29,14 @@ public class PlayerTournamnetStatsDTO {
     private Number l64; // Last 64
     private Number placings; // Total placements
 
-    public PlayerTournamnetStatsDTO(Integer playerKey, String playerName, String countryName, Number stats) {
+    public PlayerTournamnetStatsDTO(Integer playerKey, String playerName, String countryName, String stats) {
         this.playerKey = playerKey;
         this.playerName = playerName;
         this.countryName = countryName;
         this.stats = stats;
     }
 
-    public PlayerTournamnetStatsDTO(Integer playerKey, String playerName, String countryName, Number stats, Number stats2) {
+    public PlayerTournamnetStatsDTO(Integer playerKey, String playerName, String countryName, String stats, Number stats2) {
         this.playerKey = playerKey;
         this.playerName = playerName;
         this.countryName = countryName;

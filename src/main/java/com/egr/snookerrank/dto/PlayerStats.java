@@ -17,6 +17,7 @@ public class PlayerStats {
     private Number stats;
     private Number seventyBreaks ;
     private Number framesPlayed ;
+    private String details;
 
 
     public PlayerStats( Integer playerKey, String playerName,String countryName,Number stats) {
@@ -26,4 +27,12 @@ public class PlayerStats {
         this.playerKey = playerKey;
     }
 
+    public PlayerStats(Integer playerKey, String playerName, String countryName, Number stats, Number seventyBreaks, Number framesPlayed) {
+        this.playerKey = playerKey;
+        this.playerName = playerName;
+        this.countryName = countryName;
+        this.stats = stats;
+        this.seventyBreaks = seventyBreaks;
+        this.framesPlayed = framesPlayed;
+    }
 }
