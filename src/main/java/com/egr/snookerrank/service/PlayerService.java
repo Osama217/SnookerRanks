@@ -387,7 +387,7 @@ public class PlayerService {
                         Integer max = highest.get(stat.getRoundLabel());
                         switch (stat.getRoundLabel()) {
                             case "Most Wins", "Most Finals", "Most Quarter Finals", "Most Semi Finals"
-                            , "Most Appearances", "Most Century Breaks in a Match" ,"Most 147s" -> {
+                            , "Most Appearances", "Most Century Breaks in a Match"  -> {
                                 if (Objects.equals(stat.getCount(), max)) {
                                     if (statsDTO.getAmount().isEmpty()) {
                                         statsDTO.setAmount(stat.getCount() + " by " + stat.getPlayerName());
@@ -408,6 +408,19 @@ public class PlayerService {
                             case "Youngest Winner", "Oldest Winner" -> {
                                 statsDTO.setAmount(stat.getPlayerName() + " age " + stat.getCount());
                             }
+                            case "Most 147s"  -> {
+                                if (Objects.equals(stat.getCount(), max)) {
+                                    if (statsDTO.getAmount().isEmpty()) {
+                                        if(stat.getCount()>0)
+                                            statsDTO.setAmount(stat.getCount() + " by " + stat.getPlayerName());
+                                        else
+                                            statsDTO.setAmount("-");
+                                    } else {
+                                        statsDTO.setAmount(statsDTO.getAmount() + " , " + stat.getPlayerName());
+                                    }
+                                }
+                            }
+
                         }
 
                     }
