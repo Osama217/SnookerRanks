@@ -11,6 +11,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -102,32 +103,49 @@ public class PlayerTournamnetStatsServices {
 
     public List<PlayerTournamnetStatsDTO> getMatchStats(String statType,String field1, String field2,
                                                         Integer tournamentKey, String dateFrom, String dateTo) {
-        String query = "SELECT p.player_key AS playerKey, p.player_name AS playerName, p.country_name AS countryName, " +
-                "CASE WHEN :statType IN ('D', 'A', 'P') THEN SUM(CAST(mps." + field1 + " AS FLOAT)) " +
-                "     ELSE MAX(CAST(mps." + field1 + " AS FLOAT)) END AS stats " +
-                "FROM player p " +
-                "JOIN match_player_stats mps ON p.player_key = mps.player_key " +
-                "JOIN match m ON mps.match_key = m.match_key " +
-                "JOIN event e ON m.event_key = e.event_key " +
-                "WHERE mps." + field1 + " <> -1 " +
-                "AND e.tournament_key = :tournamentKey " +
-                "AND e.event_date >= :dateFrom " +
-                "AND e.event_date <= :dateTo " +
-                "GROUP BY p.player_key, p.player_name, p.country_name " ;
-        if(statType.equals("D") ||statType.equals("A")||statType.equals("P") ) {
-            query = query.concat("HAVING " +
-                    "(CASE WHEN :statType IN ('D', 'A', 'P') THEN SUM(CAST(mps." + field2 + " AS FLOAT)) ELSE 0 END) > 0 "   // Conditional sum for field2
-            );
+        StringBuilder stats,temp_stats =null;
+        String multiplier = "A".equals(statType) ? "*3" : "";
+        StringBuilder query = new StringBuilder("SELECT p.player_key AS playerKey, p.player_name AS playerName, p.country_name AS countryName, ") ;
+        boolean DAP = statType.equals("D") || statType.equals("A") || statType.equals("P");
+        if(DAP){
+            stats = new StringBuilder("CONVERT(float, SUM(mps." + field1 + "))" + (!multiplier.isEmpty() ? " * " + multiplier : "") + " / CONVERT(float, SUM(mps." + field2 + ")") ;
+            temp_stats = new StringBuilder()
+                    .append("'(' + CAST(SUM(mps.").append(field1).append(") AS VARCHAR) + '/' + CAST(SUM(mps.")
+                    .append(field2).append(") AS VARCHAR) + ') ' + CAST(ROUND((")
+                    .append("CONVERT(float, SUM(mps.").append(field1).append("))")
+                    .append(!multiplier.isEmpty() ? " * " + multiplier : "")
+                    .append(") / CONVERT(float, SUM(mps.").append(field2).append("))")
+                    .append(statType.equals("P") ? " * 100" : "")
+                    .append(", 2) AS VARCHAR ");
+            query.append(" CAST (").append(temp_stats.toString()).append(" )AS VarChar) ").append(statType.equals("P") ? " + '%'" : "");
+
+
+        }else if (statType.equals("X")){
+            stats = new StringBuilder("MAX(CAST(mps.").append(field1).append(" AS FLOAT)");
+            query.append(" Cast( ").append(stats.toString()).append(" )as varchar) ");
+        }else{
+            stats = new StringBuilder("SUM(CAST(mps.").append(field1).append(" AS FLOAT) ") ;
+            query.append(" Cast(").append(stats.toString()).append(")AS varchar) ");
         }
-        query = query.concat("ORDER BY stats DESC");
+            query.append(" AS stats FROM player p JOIN match_player_stats mps ON p.player_key = mps.player_key JOIN match m ON mps.match_key = m.match_key JOIN event e ON m.event_key = e.event_key WHERE mps.").append(field1).append(" <> -1 ").append("AND e.tournament_key =").append(tournamentKey).append(" AND e.event_date >= '").append(dateFrom).append("' AND e.event_date <= '").append(dateTo).append("' GROUP BY p.player_key, p.player_name, p.country_name  ");
+        if(DAP) {
+            query.append(" HAVING SUM(CAST(mps.").append(field2).append(" AS FLOAT)) > 0 ");
+        }
+         query.append("ORDER BY ").append(stats.toString()).append(" ) DESC");
 
-        Query nativeQuery = entityManager.createNativeQuery(query, PlayerTournamnetStatsDTO.class);
-        nativeQuery.setParameter("statType", statType);
-        nativeQuery.setParameter("tournamentKey", tournamentKey);
-        nativeQuery.setParameter("dateFrom", dateFrom);
-        nativeQuery.setParameter("dateTo", dateTo);
+        List<Object[]> results = entityManager.createNativeQuery(query.toString()).getResultList();
 
-        return nativeQuery.getResultList();
+        List<PlayerTournamnetStatsDTO> dtos = new ArrayList<>();
+        for (Object[] row : results) {
+            Integer playerKey = (row[0] != null) ? ((Number) row[0]).intValue() : null;
+            String playerName = (String) row[1];
+            String countryName = (String) row[2];
+            String stats1 = (String) row[3];
+
+            PlayerTournamnetStatsDTO dto = new PlayerTournamnetStatsDTO(playerKey, playerName, countryName, stats1);
+            dtos.add(dto);
+        }
+        return dtos;
     }
 
 
