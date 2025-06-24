@@ -3,6 +3,8 @@ package com.egr.snookerrank.dto;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.NoArgsConstructor;
+
 
 @Setter
 @Getter
