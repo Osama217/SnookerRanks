@@ -564,11 +564,48 @@ public class PlayerService {
 
                         }
                         break;
+                    
+                    case "%deciding_frames_won":
+                        result = String.format("%.2f", data.getFirst().get("deciders_win_percentage")) + "%";
+                        break;
+
+                    case "%matches_won":
+                        result = String.format("%.2f", data.getFirst().get("match_win_percentage")) + "%";
+                        break;
+                    
+                    case "50_in_deciding":
+                        result = String.format("%.2f", data.getFirst().get("breaks_50_plus_deciders_percentage")) + "%";
+                        break;
+
+                    case "70_in_deciding":
+                        result = String.format("%.2f", data.getFirst().get("breaks_70_plus_deciders_percentage")) + "%";
+                        break;
+                    
+                    case "century_in_deciding":
+                        result = String.format("%.2f", data.getFirst().get("breaks_100_plus_deciders_percentage")) + "%";
+                        break;
+
+                    case "av_deficit_frames_won":
+                        result = String.format("%.2f", data.getFirst().get("avg_points_deficit_won_frames"));
+                        break;
+                    
+                    case "av_deficit_frames_lost":
+                        result = String.format("%.2f", data.getFirst().get("avg_points_deficit_lost_frames"));
+                        break;
+
+                    case "%opening_frames_won":
+                        result = String.format("%.2f", data.getFirst().get("opening_frame_win_percentage")) + "%";
+                        break;
+
+                    case "%opening_two_frames_won":
+                        result = String.format("%.2f", data.getFirst().get("opening_2_frames_win_percentage")) + "%";
+                        break;
+
                     default:
                         result = String.valueOf(data.getFirst().get(rank.getField1()));
                         break;
 
-                }
+                    }
                 finalResponseBasedOnDate.add(new RankDetails(rank.getRankKey(), rank.getRankName(),result));
 
 
@@ -620,10 +657,49 @@ public class PlayerService {
 
                     }
                     break;
+
+                case "%deciding_frames_won":
+                    result = String.format("%.2f", data.getFirst().get("deciders_win_percentage")) + "%";
+                    break;
+
+                case "%matches_won":
+                    result = String.format("%.2f", data.getFirst().get("match_win_percentage")) + "%";
+
+                    break;
+                
+                case "50_in_deciding":
+                    result = String.format("%.2f", data.getFirst().get("breaks_50_plus_deciders_percentage")) + "%";
+                    break;
+
+                case "70_in_deciding":
+                    result = String.format("%.2f", data.getFirst().get("breaks_70_plus_deciders_percentage")) + "%";
+                    break;
+                
+                case "century_in_deciding":
+                    result = String.format("%.2f", data.getFirst().get("breaks_100_plus_deciders_percentage")) + "%";
+                    break;
+
+                case "av_deficit_frames_won":
+                    result = String.format("%.2f", data.getFirst().get("avg_points_deficit_won_frames"));
+                    break;
+                
+                case "av_deficit_frames_lost":
+                    result = String.format("%.2f", data.getFirst().get("avg_points_deficit_lost_frames"));
+                    break;
+
+                case "%opening_frames_won":
+                    result = String.format("%.2f", data.getFirst().get("opening_frame_win_percentage")) + "%";
+                    break;
+
+                case "%opening_two_frames_won":
+                    result = String.format("%.2f", data.getFirst().get("opening_2_frames_win_percentage")) + "%";
+                    break;
+
                 default:
                     result = null != data.getFirst().get(rank.getField1())   ? String.valueOf(data.getFirst().get(rank.getField1())) :"";
                     break;
             }
+
             finalResponseBasedOnDate.add(new RankDetails(rank.getRankKey(),rank.getRankName(),result));
 
         }
