@@ -102,7 +102,7 @@ public class PlayerTournamnetStatsServices {
 
     public List<PlayerTournamnetStatsDTO> getMatchStats(String statType,String field1, String field2,
                                                         Integer tournamentKey, String dateFrom, String dateTo) {
-        StringBuilder stats,temp_stats =null;
+        StringBuilder stats =null,temp_stats =null;
         String multiplier = "A".equals(statType) ? "*3" : "";
         StringBuilder query = new StringBuilder("SELECT p.player_key AS playerKey, p.player_name AS playerName, p.country_name AS countryName, ") ;
         boolean DAP = statType.equals("D") || statType.equals("A") || statType.equals("P");
