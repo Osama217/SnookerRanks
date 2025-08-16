@@ -186,8 +186,38 @@ public class PlayerService {
 
                 playerDetails.setBestMajorResults(playerTournamnetsList);
             }
+
             List<TournamentEventDTO> tournamentEvents = playerRepository.findTournamentEvents(key);
-            playerDetails.setOtherTournamentEvents(tournamentEvents);
+            //combine same tournament years
+            Map<Integer, TournamentEventDTO> merged = new LinkedHashMap<>();
+            for (TournamentEventDTO e : tournamentEvents) {
+                if (e == null) continue;
+
+                TournamentEventDTO existing = merged.get(e.getTournamentKey());
+
+                if (existing == null) {
+                    // First time we see this tournament → create new DTO with years list
+                    e.setYears(new ArrayList<>(List.of(e.getEventDate())));
+                    merged.put(e.getTournamentKey(), e);
+                } else {
+                    // Already exists → just add the year if not already present
+                    if (existing.getYears() == null) {
+                        existing.setYears(new ArrayList<>());
+                    }
+                    if (e.getEventDate() != null && !existing.getYears().contains(e.getEventDate())) {
+                        existing.getYears().add(e.getEventDate());
+                    }
+                }
+            }
+
+            // Final combined list
+            List<TournamentEventDTO> combinedList = new ArrayList<>(merged.values());
+            // sort the years in the list
+            for (TournamentEventDTO dto : combinedList) {
+                dto.getYears().sort(Integer::compareTo);
+            }
+            playerDetails.setOtherTournamentEvents(combinedList);
+
             //Going to fetch detials of Earns
             String filter = isRanking ? "Y" : "N";
             List<PlayerPrizeStats> playerPrizeStats = playerRepository.findPlayerPrizeStatistics(key, filter);

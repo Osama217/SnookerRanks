@@ -495,7 +495,7 @@ public interface PlayerRepository extends JpaRepository<Player, Integer> {
         "            SUM(CASE WHEN TRY_CAST(LEFT(opening_frame, CHARINDEX('-', opening_frame) - 1) AS INT) > \n" +
         "                       TRY_CAST(SUBSTRING(opening_frame, CHARINDEX('-', opening_frame) + 1, 5) AS INT) \n" +
         "                THEN 1 ELSE 0 END) * 100.0 /\n" +
-        "            NULLIF(COUNT(*), 0) AS DECIMAL(5,2)\n" +
+        "            NULLIF(COUNT(DISTINCT m2.match_key), 0) AS DECIMAL(5,2)\n" +
         "        )\n" +
         "        FROM match_player_stats mps2\n" +
         "        JOIN match m2 ON m2.match_key = mps2.match_key\n" +
@@ -520,7 +520,7 @@ public interface PlayerRepository extends JpaRepository<Player, Integer> {
         "                 TRY_CAST(SUBSTRING(fd1.opening_frame1, CHARINDEX('-', fd1.opening_frame1) + 1, 5) AS INT) \n" +
         "             AND TRY_CAST(LEFT(fd2.opening_frame2, CHARINDEX('-', fd2.opening_frame2) - 1) AS INT) > \n" +
         "                 TRY_CAST(SUBSTRING(fd2.opening_frame2, CHARINDEX('-', fd2.opening_frame2) + 1, 5) AS INT) \n" +
-        "            THEN 1 ELSE 0 END) * 100.0 / NULLIF(COUNT(*), 0) AS DECIMAL(5,2))\n" +
+        "            THEN 1 ELSE 0 END) * 100.0 / NULLIF(COUNT(DISTINCT m2.match_key), 0) AS DECIMAL(5,2))\n" +
         "        FROM match_player_stats mps2\n" +
         "        JOIN match m2 ON m2.match_key = mps2.match_key\n" +
         "        JOIN player p2 ON mps2.player_key = p2.player_key\n" +
