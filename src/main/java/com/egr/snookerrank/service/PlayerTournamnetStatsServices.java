@@ -125,7 +125,7 @@ public class PlayerTournamnetStatsServices {
             query.append(" Cast( ").append(stats.toString()).append(" )as varchar) ");
         }
 
-        else if(statType.equals("%opening_frames_won")){
+        else {
             stats = new StringBuilder("SUM(CAST(mps.").append(field1).append(" AS FLOAT) ") ;
             query.append(" Cast(").append(stats.toString()).append(")AS varchar) ");
         }

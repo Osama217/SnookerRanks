@@ -669,14 +669,15 @@ public interface PlayerRepository extends JpaRepository<Player, Integer> {
             "WHERE is_talent_portal=1  ORDER BY talent_portal_order",nativeQuery = true)
     List<RankFields> getTalentPortalRanks();
 
-    @Query(value = "SELECT player_key as playerKey," +
+    @Query(value = "SELECT player.player_key as playerKey," +
             "player_name as playerName," +
             "age," +
             "fdi_rank as fdiRank," +
             "world_rank as worldRank," +
             "country_name as countryName," +
             "(world_rank-fdi_rank) diff " +
-            "FROM player WHERE NOT world_rank IS NULL AND NOT fdi_rank IS NULL ORDER BY diff DESC\n",nativeQuery = true)
+            "FROM player inner join player_pro_card on player.player_key=player_pro_card.player_key  " +
+            "WHERE NOT world_rank IS NULL AND NOT fdi_rank IS NULL ORDER BY diff DESC\n",nativeQuery = true)
     List<FDIComparisonDTO> gettalenetPortaFDIComparison();
 
     @Query(value = "SELECT rank_text_key,rank_name FROM rank_text WHERE is_ranking=1 ORDER BY order_num\n",nativeQuery = true)
