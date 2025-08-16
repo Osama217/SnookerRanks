@@ -134,8 +134,8 @@ public class PlayerTournamnetStatsServices {
         if(DAP) {
             query.append(" HAVING SUM(CAST(mps.").append(field2).append(" AS FLOAT)) > 0 ");
         }
-
-        query.append("ORDER BY ").append(stats.toString()).append(" ) DESC");
+        if(null != stats)
+            query.append("ORDER BY ").append(stats.toString()).append(" ) DESC");
 
         List<Object[]> results = entityManager.createNativeQuery(query.toString()).getResultList();
 
