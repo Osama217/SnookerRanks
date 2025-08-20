@@ -828,11 +828,25 @@ public class PlayerService {
 
     public MatchPlayerStatsDTO getMatchPlayerStats(Integer matchKey, Integer winnerKey, Integer losserKey) {
         MatchPlayerStatsDTO dto = null;
+        List<Integer>  desiredOrder = Arrays.asList(
+                201, 152, 153, 151, 102, 108, 101, 502, 132, 143
+        );
         List<Map<String, Object>> player1List =    playerRepository.getMatchPlayerStats(matchKey,winnerKey);
         List<Map<String, Object>> player2List =    playerRepository.getMatchPlayerStats(matchKey,losserKey);
      List<RankFields> ranks = playerRepository.getTalentPortalRanks();
-        Map <String,String> player1result = getResult(player1List,ranks);
-        Map <String,String> player2result = getResult(player2List,ranks);
+        Map<Integer, Integer> orderMap = new HashMap<>();
+        for (int i = 0; i < desiredOrder.size(); i++) {
+            orderMap.put(desiredOrder.get(i), i);
+        }
+
+// Filter and sort
+        List<RankFields> sortedRanks = ranks.stream()
+                .filter(r -> orderMap.containsKey(r.getRankKey()))  // keep only desired keys
+                .sorted(Comparator.comparingInt(r -> orderMap.get(r.getRankKey())))
+                .collect(Collectors.toList());
+
+        Map <String,String> player1result = getResult(player1List,sortedRanks);
+        Map <String,String> player2result = getResult(player2List,sortedRanks);
         dto = new MatchPlayerStatsDTO(player1result,player2result);
         return dto;
 
