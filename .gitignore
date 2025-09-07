@@ -31,3 +31,16 @@ build/
 
 ### VS Code ###
 .vscode/
+
+
+.env
+
+RankTextDiffChecker.java
+RankTextDiffChecker.class
+mssql-jdbc-13.2.0.jre11.jar
+res.txt
+output.csv
+### Mac OS ###
+.DS_Store
+.***.swp
+*~  

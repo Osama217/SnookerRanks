@@ -186,8 +186,38 @@ public class PlayerService {
 
                 playerDetails.setBestMajorResults(playerTournamnetsList);
             }
+
             List<TournamentEventDTO> tournamentEvents = playerRepository.findTournamentEvents(key);
-            playerDetails.setOtherTournamentEvents(tournamentEvents);
+            //combine same tournament years
+            Map<Integer, TournamentEventDTO> merged = new LinkedHashMap<>();
+            for (TournamentEventDTO e : tournamentEvents) {
+                if (e == null) continue;
+
+                TournamentEventDTO existing = merged.get(e.getTournamentKey());
+
+                if (existing == null) {
+                    // First time we see this tournament → create new DTO with years list
+                    e.setYears(new ArrayList<>(List.of(e.getEventDate())));
+                    merged.put(e.getTournamentKey(), e);
+                } else {
+                    // Already exists → just add the year if not already present
+                    if (existing.getYears() == null) {
+                        existing.setYears(new ArrayList<>());
+                    }
+                    if (e.getEventDate() != null && !existing.getYears().contains(e.getEventDate())) {
+                        existing.getYears().add(e.getEventDate());
+                    }
+                }
+            }
+
+            // Final combined list
+            List<TournamentEventDTO> combinedList = new ArrayList<>(merged.values());
+            // sort the years in the list
+            for (TournamentEventDTO dto : combinedList) {
+                dto.getYears().sort(Integer::compareTo);
+            }
+            playerDetails.setOtherTournamentEvents(combinedList);
+
             //Going to fetch detials of Earns
             String filter = isRanking ? "Y" : "N";
             List<PlayerPrizeStats> playerPrizeStats = playerRepository.findPlayerPrizeStatistics(key, filter);
@@ -387,7 +417,7 @@ public class PlayerService {
                         Integer max = highest.get(stat.getRoundLabel());
                         switch (stat.getRoundLabel()) {
                             case "Most Wins", "Most Finals", "Most Quarter Finals", "Most Semi Finals"
-                            , "Most Appearances", "Most Century Breaks in a Match" ,"Most 147s" -> {
+                            , "Most Appearances", "Most Century Breaks in a Match"  -> {
                                 if (Objects.equals(stat.getCount(), max)) {
                                     if (statsDTO.getAmount().isEmpty()) {
                                         statsDTO.setAmount(stat.getCount() + " by " + stat.getPlayerName());
@@ -408,6 +438,19 @@ public class PlayerService {
                             case "Youngest Winner", "Oldest Winner" -> {
                                 statsDTO.setAmount(stat.getPlayerName() + " age " + stat.getCount());
                             }
+                            case "Most 147s"  -> {
+                                if (Objects.equals(stat.getCount(), max)) {
+                                    if (statsDTO.getAmount().isEmpty()) {
+                                        if(stat.getCount()>0)
+                                            statsDTO.setAmount(stat.getCount() + " by " + stat.getPlayerName());
+                                        else
+                                            statsDTO.setAmount("-");
+                                    } else {
+                                        statsDTO.setAmount(statsDTO.getAmount() + " , " + stat.getPlayerName());
+                                    }
+                                }
+                            }
+
                         }
 
                     }
@@ -551,11 +594,48 @@ public class PlayerService {
 
                         }
                         break;
+                    
+                    case "%deciding_frames_won":
+                        result = String.format("%.2f", data.getFirst().get("deciders_win_percentage")) + "%";
+                        break;
+
+                    case "%matches_won":
+                        result = String.format("%.2f", data.getFirst().get("match_win_percentage")) + "%";
+                        break;
+                    
+                    case "50_in_deciding":
+                        result = String.format("%.2f", data.getFirst().get("breaks_50_plus_deciders_percentage")) + "%";
+                        break;
+
+                    case "70_in_deciding":
+                        result = String.format("%.2f", data.getFirst().get("breaks_70_plus_deciders_percentage")) + "%";
+                        break;
+                    
+                    case "century_in_deciding":
+                        result = String.format("%.2f", data.getFirst().get("breaks_100_plus_deciders_percentage")) + "%";
+                        break;
+
+                    case "av_deficit_frames_won":
+                        result = String.format("%.2f", data.getFirst().get("avg_points_deficit_won_frames"));
+                        break;
+                    
+                    case "av_deficit_frames_lost":
+                        result = String.format("%.2f", data.getFirst().get("avg_points_deficit_lost_frames"));
+                        break;
+
+                    case "%opening_frames_won":
+                        result = String.format("%.2f", data.getFirst().get("opening_frame_win_percentage")) + "%";
+                        break;
+
+                    case "%opening_two_frames_won":
+                        result = String.format("%.2f", data.getFirst().get("opening_2_frames_win_percentage")) + "%";
+                        break;
+
                     default:
                         result = String.valueOf(data.getFirst().get(rank.getField1()));
                         break;
 
-                }
+                    }
                 finalResponseBasedOnDate.add(new RankDetails(rank.getRankKey(), rank.getRankName(),result));
 
 
@@ -607,10 +687,49 @@ public class PlayerService {
 
                     }
                     break;
+
+                case "%deciding_frames_won":
+                    result = String.format("%.2f", data.getFirst().get("deciders_win_percentage")) + "%";
+                    break;
+
+                case "%matches_won":
+                    result = String.format("%.2f", data.getFirst().get("match_win_percentage")) + "%";
+
+                    break;
+                
+                case "50_in_deciding":
+                    result = String.format("%.2f", data.getFirst().get("breaks_50_plus_deciders_percentage")) + "%";
+                    break;
+
+                case "70_in_deciding":
+                    result = String.format("%.2f", data.getFirst().get("breaks_70_plus_deciders_percentage")) + "%";
+                    break;
+                
+                case "century_in_deciding":
+                    result = String.format("%.2f", data.getFirst().get("breaks_100_plus_deciders_percentage")) + "%";
+                    break;
+
+                case "av_deficit_frames_won":
+                    result = String.format("%.2f", data.getFirst().get("avg_points_deficit_won_frames"));
+                    break;
+                
+                case "av_deficit_frames_lost":
+                    result = String.format("%.2f", data.getFirst().get("avg_points_deficit_lost_frames"));
+                    break;
+
+                case "%opening_frames_won":
+                    result = String.format("%.2f", data.getFirst().get("opening_frame_win_percentage")) + "%";
+                    break;
+
+                case "%opening_two_frames_won":
+                    result = String.format("%.2f", data.getFirst().get("opening_2_frames_win_percentage")) + "%";
+                    break;
+
                 default:
                     result = null != data.getFirst().get(rank.getField1())   ? String.valueOf(data.getFirst().get(rank.getField1())) :"";
                     break;
             }
+
             finalResponseBasedOnDate.add(new RankDetails(rank.getRankKey(),rank.getRankName(),result));
 
         }
@@ -709,11 +828,25 @@ public class PlayerService {
 
     public MatchPlayerStatsDTO getMatchPlayerStats(Integer matchKey, Integer winnerKey, Integer losserKey) {
         MatchPlayerStatsDTO dto = null;
+        List<Integer>  desiredOrder = Arrays.asList(
+                201, 152, 153, 151, 102, 108, 101, 502, 132, 143
+        );
         List<Map<String, Object>> player1List =    playerRepository.getMatchPlayerStats(matchKey,winnerKey);
         List<Map<String, Object>> player2List =    playerRepository.getMatchPlayerStats(matchKey,losserKey);
      List<RankFields> ranks = playerRepository.getTalentPortalRanks();
-        Map <String,String> player1result = getResult(player1List,ranks);
-        Map <String,String> player2result = getResult(player2List,ranks);
+        Map<Integer, Integer> orderMap = new HashMap<>();
+        for (int i = 0; i < desiredOrder.size(); i++) {
+            orderMap.put(desiredOrder.get(i), i);
+        }
+
+// Filter and sort
+        List<RankFields> sortedRanks = ranks.stream()
+                .filter(r -> orderMap.containsKey(r.getRankKey()))  // keep only desired keys
+                .sorted(Comparator.comparingInt(r -> orderMap.get(r.getRankKey())))
+                .collect(Collectors.toList());
+
+        Map <String,String> player1result = getResult(player1List,sortedRanks);
+        Map <String,String> player2result = getResult(player2List,sortedRanks);
         dto = new MatchPlayerStatsDTO(player1result,player2result);
         return dto;
 

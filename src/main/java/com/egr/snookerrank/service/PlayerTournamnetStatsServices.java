@@ -90,7 +90,6 @@ public class PlayerTournamnetStatsServices {
             default:
                 RankText rankText = rankTextRepository.findByRankTextKey(tournamnetStatsKey);
                 if(null != rankText) {
-
                     statsDTOS = getMatchStats(rankText.getStatType(), rankText.getField1(), rankText.getField2(), tournamnetKey, dateFrom, dateTo);
                 }
                 break;
@@ -103,10 +102,11 @@ public class PlayerTournamnetStatsServices {
 
     public List<PlayerTournamnetStatsDTO> getMatchStats(String statType,String field1, String field2,
                                                         Integer tournamentKey, String dateFrom, String dateTo) {
-        StringBuilder stats,temp_stats =null;
+        StringBuilder stats =null,temp_stats =null;
         String multiplier = "A".equals(statType) ? "*3" : "";
         StringBuilder query = new StringBuilder("SELECT p.player_key AS playerKey, p.player_name AS playerName, p.country_name AS countryName, ") ;
         boolean DAP = statType.equals("D") || statType.equals("A") || statType.equals("P");
+
         if(DAP){
             stats = new StringBuilder("CONVERT(float, SUM(mps." + field1 + "))" + (!multiplier.isEmpty() ? " * " + multiplier : "") + " / CONVERT(float, SUM(mps." + field2 + ")") ;
             temp_stats = new StringBuilder()
@@ -123,15 +123,19 @@ public class PlayerTournamnetStatsServices {
         }else if (statType.equals("X")){
             stats = new StringBuilder("MAX(CAST(mps.").append(field1).append(" AS FLOAT)");
             query.append(" Cast( ").append(stats.toString()).append(" )as varchar) ");
-        }else{
+        }
+
+        else {
             stats = new StringBuilder("SUM(CAST(mps.").append(field1).append(" AS FLOAT) ") ;
             query.append(" Cast(").append(stats.toString()).append(")AS varchar) ");
         }
-            query.append(" AS stats FROM player p JOIN match_player_stats mps ON p.player_key = mps.player_key JOIN match m ON mps.match_key = m.match_key JOIN event e ON m.event_key = e.event_key WHERE mps.").append(field1).append(" <> -1 ").append("AND e.tournament_key =").append(tournamentKey).append(" AND e.event_date >= '").append(dateFrom).append("' AND e.event_date <= '").append(dateTo).append("' GROUP BY p.player_key, p.player_name, p.country_name  ");
+        
+        query.append(" AS stats FROM player p JOIN match_player_stats mps ON p.player_key = mps.player_key JOIN match m ON mps.match_key = m.match_key JOIN event e ON m.event_key = e.event_key WHERE mps.").append(field1).append(" <> -1 ").append("AND e.tournament_key =").append(tournamentKey).append(" AND e.event_date >= '").append(dateFrom).append("' AND e.event_date <= '").append(dateTo).append("' GROUP BY p.player_key, p.player_name, p.country_name  ");
         if(DAP) {
             query.append(" HAVING SUM(CAST(mps.").append(field2).append(" AS FLOAT)) > 0 ");
         }
-         query.append("ORDER BY ").append(stats.toString()).append(" ) DESC");
+        if(null != stats)
+            query.append("ORDER BY ").append(stats.toString()).append(" ) DESC");
 
         List<Object[]> results = entityManager.createNativeQuery(query.toString()).getResultList();
 
