@@ -35,3 +35,9 @@ This project provides a REST API and frontend dashboard for snooker player ranki
 
 ```bash
 mvn clean install
+
+mvn spring-boot:run
+
+cd /target
+
+java -jar snookerrank-2.4.1.jar --spring.profiles.active=stg
