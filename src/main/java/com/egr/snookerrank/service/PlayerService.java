@@ -429,7 +429,7 @@ public class PlayerService {
                             case "Most Century Breaks in a Tournament" -> {
                                 if (Objects.equals(stat.getCount(), max)) {
                                     if (statsDTO.getAmount().isEmpty()) {
-                                        statsDTO.setAmount(stat.getCount() + " by " + stat.getPlayerName() + " (" + stat.getYear() + " )");
+                                        statsDTO.setAmount(stat.getCount() + " by " + stat.getPlayerName() + " (" + stat.getYear() + ")");
                                     } else {
                                         statsDTO.setAmount(statsDTO.getAmount() + " , " + stat.getPlayerName() + " (" + stat.getYear() + " )");
                                     }
