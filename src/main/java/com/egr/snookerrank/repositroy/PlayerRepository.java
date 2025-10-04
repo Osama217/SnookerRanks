@@ -319,7 +319,8 @@ public interface PlayerRepository extends JpaRepository<Player, Integer> {
     @Query(value = "SELECT TOP 1 player_key as playerKey,player_name as playerName,Year(event_date) as year,(SELECT ISNULL(SUM(max_breaks),0)  FROM match m JOIN match_player_stats mps ON m.match_key=mps.match_key WHERE mps.player_key=p.player_key AND max_breaks>0 AND event_key=e.event_key) as count, 'Most 147s' as roundLabel  FROM player p,event e WHERE e.tournament_key=:tournamentKey ORDER BY count DESC",
             nativeQuery = true)
     List<TournamnetStats> getMost147sInTournamnet(@Param("tournamentKey") Integer tournamentKey);
-
+        // @Query(value = "SELECT TOP 1 player_key as playerKey, player_name as playerName, YEAR(event_date) as year, (SELECT COUNT(*) FROM match m JOIN match_player_stats mps ON m.match_key=mps.match_key WHERE mps.player_key=p.player_key AND mps.highest_break=147 AND m.event_key=e.event_key) as count, 'Most 147s' as roundLabel FROM player p, event e WHERE e.tournament_key=:tournamentKey ORDER BY count DESC", nativeQuery = true)
+        // List<TournamnetStats> getMost147sInTournamnet(@Param("tournamentKey") Integer tournamentKey);
 
     String winner = "(SELECT COUNT(*) FROM match WHERE winner_key=:playerId AND loser_key=p.player_key AND is_bye=0 AND (winner_score > loser_score OR winner_score = 0))";
     String loser = "(SELECT COUNT(*) FROM match WHERE loser_key=:playerId AND winner_key=p.player_key AND is_bye=0 AND (winner_score > loser_score OR winner_score = 0))";

@@ -16,7 +16,7 @@ public class SnookerStats {
     public double chanceToWin(double playerFdi, double opponentFdi, String legOrSet, int firstTo) {
         int bestOfLegs = (firstTo * 2) - 1;
         double chanceOfOneSetOrLeg = chanceOfOneSetOrLeg(playerFdi, opponentFdi, legOrSet);
-        return 1 - binomialDist(((bestOfLegs - 1) / 2), bestOfLegs, chanceOfOneSetOrLeg, true);
+        return 1 - binomialDist((bestOfLegs - 1) / 2, bestOfLegs, chanceOfOneSetOrLeg, true);
     }
 
     // Method to calculate the chance of winning one set or leg
@@ -91,14 +91,17 @@ public class SnookerStats {
 
 
             // Calculate binomial distribution for the chance
-            nChance = binomialDist(lPlayer1Score, lPlayer1Score + lPlayer2Score, nChance, false) * (lFirstTo / (double)(lPlayer1Score + lPlayer2Score));
+            nChance = binomialDist(lPlayer1Score, lPlayer1Score + lPlayer2Score, nChance, false);
 
-            // Format the output as percentage and other values
+            // Format the output as percentage and other values (cap at 0.01% minimum)
             DecimalFormat df = new DecimalFormat("0.00%");
-            String formattedChance = df.format(nChance);
+            String formattedChance = df.format(Math.max(nChance, 0.0001));
 
             df = new DecimalFormat("0.00");
-            String inverseChance = df.format(1 / nChance);
+            // Cap odds at 1000/1 and ensure minimum probability
+            double cappedProbability = Math.max(nChance, 0.0001);
+            double cappedOdds = Math.min(1 / cappedProbability, 1000);
+            String inverseChance = df.format(cappedOdds);
 
             // Collect data in tabular form (as a DTO)
             CorrectScoreDTO row = new CorrectScoreDTO(lPlayer1Score + "-" + lPlayer2Score, formattedChance, inverseChance);
