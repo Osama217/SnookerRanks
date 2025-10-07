@@ -431,7 +431,7 @@ public class PlayerService {
                                     if (statsDTO.getAmount().isEmpty()) {
                                         statsDTO.setAmount(stat.getCount() + " by " + stat.getPlayerName() + " (" + stat.getYear() + ")");
                                     } else {
-                                        statsDTO.setAmount(statsDTO.getAmount() + " , " + stat.getPlayerName() + " (" + stat.getYear() + " )");
+                                        statsDTO.setAmount(statsDTO.getAmount() + " , " + stat.getPlayerName() + " (" + stat.getYear() + ")");
                                     }
                                 }
                             }

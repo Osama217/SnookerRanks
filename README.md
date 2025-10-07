@@ -41,3 +41,5 @@ mvn spring-boot:run
 cd /target
 
 java -jar snookerrank-2.4.1.jar --spring.profiles.active=stg
+
+combined command -> mvn spring-boot:run -Dspring-boot.run.profiles=stg
