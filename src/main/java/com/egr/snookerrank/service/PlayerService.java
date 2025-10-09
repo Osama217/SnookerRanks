@@ -346,7 +346,7 @@ public class PlayerService {
                                     .filter(match -> match.getRoundNo().equals(prize.getRoundNo())) // Match roundNo
                                     .collect(Collectors.toList()) // Collect matched results
                     ))
-                    .filter(prize ->null != prize.getPrizeMoney() && CommonUtilities.isGreaterThan(prize.getPrizeMoney(),0) && !prize.getMatchResults().isEmpty())
+                    .filter(prize -> !prize.getMatchResults().isEmpty())
                     .collect(Collectors.toList());
         }
         return new EventResultsDTO(tournamentCompleteName, prizeFundsDTOList);
