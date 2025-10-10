@@ -422,7 +422,7 @@ public class PlayerService {
                                     if (statsDTO.getAmount().isEmpty()) {
                                         statsDTO.setAmount(stat.getCount() + " by " + stat.getPlayerName());
                                     } else {
-                                        statsDTO.setAmount(statsDTO.getAmount() + " , " + stat.getPlayerName());
+                                        statsDTO.setAmount(statsDTO.getAmount() + ", " + stat.getPlayerName());
                                     }
                                 }
                             }
@@ -431,7 +431,7 @@ public class PlayerService {
                                     if (statsDTO.getAmount().isEmpty()) {
                                         statsDTO.setAmount(stat.getCount() + " by " + stat.getPlayerName() + " (" + stat.getYear() + ")");
                                     } else {
-                                        statsDTO.setAmount(statsDTO.getAmount() + " , " + stat.getPlayerName() + " (" + stat.getYear() + ")");
+                                        statsDTO.setAmount(statsDTO.getAmount() + ", " + stat.getPlayerName() + " (" + stat.getYear() + ")");
                                     }
                                 }
                             }
@@ -446,7 +446,7 @@ public class PlayerService {
                                         else
                                             statsDTO.setAmount("-");
                                     } else {
-                                        statsDTO.setAmount(statsDTO.getAmount() + " , " + stat.getPlayerName());
+                                        statsDTO.setAmount(statsDTO.getAmount() + ", " + stat.getPlayerName());
                                     }
                                 }
                             }
