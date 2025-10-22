@@ -798,7 +798,7 @@ public class PlayerService {
             LocalDate dDateTo = LocalDate.now(); // Today's date
             LocalDate dDateFrom = dDateTo.minusYears(1); // One year ago
             result = playerStatsRepository.findPlayersWithStatsRankingFilters(rankText.getStatType(), rankText.getField1(), rankText.getField2(),
-                    null, null, null, dDateFrom, dDateTo, 1, rankText.isOrderAsc(), 32);
+                    null, null, null, dDateFrom, dDateTo, 20, rankText.isOrderAsc(), 32);
             List<PlayerStats> ranksDTOList = result.stream().map(row -> {
                 if (row.length > 4) {
                     return new PlayerStats(
