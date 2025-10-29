@@ -238,71 +238,87 @@ public class PlayerStatsRepositoryImpl implements PlayerStatsRepository {
 
         return query.getResultList();
     }
+    //////////////////////////////////////////////
 
-    private List<Object[]> getDecidingFrameWinStats(
-        TournamentDTO tournament,
-        Integer year,
-        Integer eventKey,
-        LocalDate dateFrom,
-        LocalDate dateTo,
-        Boolean orderAsc,
-        Integer topLimit) {
+private List<Object[]> getDecidingFrameWinStats(
+    TournamentDTO tournament,
+    Integer year,
+    Integer eventKey,
+    LocalDate dateFrom,
+    LocalDate dateTo,
+    Boolean orderAsc,
+    Integer topLimit) {
 
-        StringBuilder sql = new StringBuilder();
+    StringBuilder sql = new StringBuilder();
 
-        sql.append("SELECT TOP ").append(topLimit).append(" ")
-            .append("mps.player_key, ")
-            .append("p.player_name, ")
-            .append("p.country_name, ")
+    sql.append("SELECT TOP ").append(topLimit).append(" ")
+        .append("mps.player_key, ")
+        .append("p.player_name, ")
+        .append("p.country_name, ")
+        
+        // Wins: distinct decider matches won by player
+        .append("COUNT(DISTINCT CASE WHEN mps.player_key = m.winner_key THEN m.match_key END) AS deciders_won, ")
+        
+        // Played: distinct decider matches played by player
+        .append("COUNT(DISTINCT m.match_key) AS deciders_played, ")
+        
+        // Percentage
+        .append("CAST(COUNT(DISTINCT CASE WHEN mps.player_key = m.winner_key THEN m.match_key END) * 100.0 / NULLIF(COUNT(DISTINCT m.match_key),0) AS DECIMAL(5,2)) AS win_percentage, ")
+        
+        // ✅ Total matches played - from the JOIN
+        .append("player_matches.total_matches AS total_matches_played ")
+        
+        .append("FROM match_player_stats mps ")
+        .append("JOIN player p ON mps.player_key = p.player_key ")
+        .append("JOIN match m ON m.match_key = mps.match_key ")
+        .append("JOIN event e ON m.event_key = e.event_key ")
+        .append("JOIN tournament t ON e.tournament_key = t.tournament_key ")
+        
+        // ✅ JOIN to get total matches count
+        .append("JOIN ( ")
+        .append("    SELECT mps2.player_key, COUNT(DISTINCT m2.match_key) AS total_matches ")
+        .append("    FROM match_player_stats mps2 ")
+        .append("    JOIN match m2 ON m2.match_key = mps2.match_key ")
+        .append("    WHERE m2.winner_key IS NOT NULL ")
+        .append("      AND m2.loser_key IS NOT NULL ")
+        .append("      AND m2.match_date >= :dateFrom ")
+        .append("      AND m2.match_date <= :dateTo ")
+        .append("    GROUP BY mps2.player_key ")
+        .append("    HAVING COUNT(DISTINCT m2.match_key) >= 20 ")
+        .append(") player_matches ON player_matches.player_key = mps.player_key ")
+        
+        // Filter: Only deciding frames
+        .append("WHERE mps.frame_scores IS NOT NULL ")
+        .append("AND ( ")
+        .append("    SELECT COUNT(*) FROM STRING_SPLIT(mps.frame_scores, ';') ")
+        .append(") = (m.winner_score + m.loser_score) ")
+        .append("AND (m.winner_score + m.loser_score) = (2 * m.winner_score - 1) ")
+        .append("AND m.match_date >= :dateFrom ")
+        .append("AND m.match_date <= :dateTo ");
 
-            // Wins: distinct decider matches won by player
-            .append("COUNT(DISTINCT CASE WHEN mps.player_key = m.winner_key THEN m.match_key END) AS deciders_won, ")
+    // Optional filters for tournament, year, event
+    setAdditionalFieldsInQuery(sql, tournament, year, eventKey);
 
-            // Played: distinct decider matches played by player
-            .append("COUNT(DISTINCT m.match_key) AS deciders_played, ")
+    sql.append("GROUP BY mps.player_key, p.player_name, p.country_name, player_matches.total_matches ")
+        .append("ORDER BY win_percentage ").append(Boolean.TRUE.equals(orderAsc) ? "ASC" : "DESC");
 
-            // Percentage
-            .append("CAST(COUNT(DISTINCT CASE WHEN mps.player_key = m.winner_key THEN m.match_key END) * 100.0 / NULLIF(COUNT(DISTINCT m.match_key),0) AS DECIMAL(5,2)) AS win_percentage ")
+    Query query = entityManager.createNativeQuery(sql.toString());
+    query.setParameter("dateFrom", dateFrom);
+    query.setParameter("dateTo", dateTo);
+    setAdditionalParameters(query, year, eventKey);
 
-            .append("FROM match_player_stats mps ")
-            .append("JOIN player p ON mps.player_key = p.player_key ")
-            .append("JOIN match m ON m.match_key = mps.match_key ")
-            .append("JOIN event e ON m.event_key = e.event_key ")
-            .append("JOIN tournament t ON e.tournament_key = t.tournament_key ")
+    return query.getResultList();
+}
 
-            .append("WHERE mps.player_key IN ( ")
-            .append("    SELECT mps2.player_key ")
-            .append("    FROM match_player_stats mps2 ")
-            .append("    JOIN match m2 ON m2.match_key = mps2.match_key ")
-            .append("    WHERE m2.winner_key IS NOT NULL AND m2.loser_key IS NOT NULL ")
-            .append("      AND m2.match_date >= :dateFrom ")
-            .append("      AND m2.match_date <= :dateTo ")
-            .append("    GROUP BY mps2.player_key ")
-            .append("    HAVING COUNT(DISTINCT m2.match_key) >= 20 ")
-            .append(") ")
-
-            .append("AND mps.frame_scores IS NOT NULL ")
-            .append("AND ( ")
-            .append("    SELECT COUNT(*) FROM STRING_SPLIT(mps.frame_scores, ';') ")
-            .append(") = (m.winner_score + m.loser_score) ") 
-            .append("AND (m.winner_score + m.loser_score) = (2 * m.winner_score - 1) ")
-            .append("AND m.match_date >= :dateFrom ")
-            .append("AND m.match_date <= :dateTo ");
-
-
-        // Optional filters for tournament, year, event
-        setAdditionalFieldsInQuery(sql, tournament, year, eventKey);
-
-        sql.append("GROUP BY mps.player_key, p.player_name, p.country_name ")
-            .append("ORDER BY win_percentage ").append(Boolean.TRUE.equals(orderAsc) ? "ASC" : "DESC");
-
-        Query query = entityManager.createNativeQuery(sql.toString());
-        query.setParameter("dateFrom", dateFrom);
-        query.setParameter("dateTo", dateTo);
-        setAdditionalParameters(query, year, eventKey);
-
-        return query.getResultList();
-    }
+// Result array structure:
+// row[0] = player_key (Integer)
+// row[1] = player_name (String)
+// row[2] = country_name (String)
+// row[3] = deciders_won (Number)
+// row[4] = deciders_played (Number)
+// row[5] = win_percentage (Number)
+// row[6] = total_matches_played (Number)
+////////////////////////////////////////////////////////
 
     private List<Object[]> getAverageDeficitFramesWon(
         TournamentDTO tournament,
@@ -436,179 +452,232 @@ public class PlayerStatsRepositoryImpl implements PlayerStatsRepository {
         return query.getResultList();
     }
 
-    private List<Object[]> getFiftyPlusBreaksInDeciders(
-        TournamentDTO tournament,
-        Integer year,
-        Integer eventKey,
-        LocalDate dateFrom,
-        LocalDate dateTo,
-        Boolean orderAsc,
-        Integer topLimit) {
+   private List<Object[]> getFiftyPlusBreaksInDeciders(
+    TournamentDTO tournament,
+    Integer year,
+    Integer eventKey,
+    LocalDate dateFrom,
+    LocalDate dateTo,
+    Boolean orderAsc,
+    Integer topLimit) {
 
-        StringBuilder sql = new StringBuilder();
+    StringBuilder sql = new StringBuilder();
 
-        sql.append("SELECT TOP ").append(topLimit).append(" ")
-            .append("mps.player_key, ")
-            .append("p.player_name, ")
-            .append("p.country_name, ")
-            .append("SUM(CASE WHEN ")
-            .append("    CHARINDEX('(', last_frame) > 0 AND ")
-            .append("    TRY_CAST(SUBSTRING(last_frame, CHARINDEX('(', last_frame) + 1, ")
-            .append("        CHARINDEX(')', last_frame) - CHARINDEX('(', last_frame) - 1) AS INT) >= 50 ")
-            .append("    THEN 1 ELSE 0 END) AS breaks_50_plus, ") // row[3]
-            .append("COUNT(*) AS total_deciding_frames, ")        // row[4]
-            .append("CAST(SUM(CASE WHEN ")
-            .append("    CHARINDEX('(', last_frame) > 0 AND ")
-            .append("    TRY_CAST(SUBSTRING(last_frame, CHARINDEX('(', last_frame) + 1, ")
-            .append("        CHARINDEX(')', last_frame) - CHARINDEX('(', last_frame) - 1) AS INT) >= 50 ")
-            .append("    THEN 1 ELSE 0 END) * 100.0 / COUNT(*) AS DECIMAL(5,2)) AS break_percentage ") // row[5]
-            .append("FROM match_player_stats mps ")
-            .append("JOIN player p ON mps.player_key = p.player_key ")
-            .append("JOIN match m ON mps.match_key = m.match_key ")
-            .append("JOIN event e ON m.event_key = e.event_key ")
-            .append("JOIN tournament t ON e.tournament_key = t.tournament_key ")
-            .append("CROSS APPLY ( ")
-            .append("    SELECT value AS last_frame, ")
-            .append("           ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) AS rn ")
-            .append("    FROM STRING_SPLIT(mps.frame_scores, ';') ")
-            .append(") AS frames ")
-            .append("WHERE rn = (SELECT COUNT(*) FROM STRING_SPLIT(mps.frame_scores, ';')) ") // ✅ Get last frame only
-            .append("AND mps.frame_scores IS NOT NULL ")
-            .append("AND ( ")
-            .append("    SELECT COUNT(*) FROM STRING_SPLIT(mps.frame_scores, ';') ")
-            .append(") = (m.winner_score + m.loser_score) ") // ✅ Match went the distance (true decider)
-            .append("AND (m.winner_score + m.loser_score) = (2 * m.winner_score - 1) ")
-            .append("AND m.match_date >= :dateFrom ")
-            .append("AND m.match_date <= :dateTo ");
+    sql.append("SELECT TOP ").append(topLimit).append(" ")
+        .append("mps.player_key, ")
+        .append("p.player_name, ")
+        .append("p.country_name, ")
+        .append("SUM(CASE WHEN ")
+        .append("    CHARINDEX('(', last_frame) > 0 AND ")
+        .append("    TRY_CAST(SUBSTRING(last_frame, CHARINDEX('(', last_frame) + 1, ")
+        .append("        CHARINDEX(')', last_frame) - CHARINDEX('(', last_frame) - 1) AS INT) >= 50 ")
+        .append("    THEN 1 ELSE 0 END) AS breaks_50_plus, ")
+        .append("COUNT(*) AS total_deciding_frames, ")
+        .append("CAST(SUM(CASE WHEN ")
+        .append("    CHARINDEX('(', last_frame) > 0 AND ")
+        .append("    TRY_CAST(SUBSTRING(last_frame, CHARINDEX('(', last_frame) + 1, ")
+        .append("        CHARINDEX(')', last_frame) - CHARINDEX('(', last_frame) - 1) AS INT) >= 50 ")
+        .append("    THEN 1 ELSE 0 END) * 100.0 / COUNT(*) AS DECIMAL(5,2)) AS break_percentage, ")
+        
+        // ✅ ADD: Total matches played from JOIN
+        .append("player_matches.total_matches AS total_matches_played ")
+        
+        .append("FROM match_player_stats mps ")
+        .append("JOIN player p ON mps.player_key = p.player_key ")
+        .append("JOIN match m ON mps.match_key = m.match_key ")
+        .append("JOIN event e ON m.event_key = e.event_key ")
+        .append("JOIN tournament t ON e.tournament_key = t.tournament_key ")
+        
+        // ✅ ADD: JOIN to get total matches count
+        .append("JOIN ( ")
+        .append("    SELECT mps2.player_key, COUNT(DISTINCT m2.match_key) AS total_matches ")
+        .append("    FROM match_player_stats mps2 ")
+        .append("    JOIN match m2 ON m2.match_key = mps2.match_key ")
+        .append("    WHERE m2.winner_key IS NOT NULL ")
+        .append("      AND m2.loser_key IS NOT NULL ")
+        .append("      AND m2.match_date >= :dateFrom ")
+        .append("      AND m2.match_date <= :dateTo ")
+        .append("    GROUP BY mps2.player_key ")
+        .append("    HAVING COUNT(DISTINCT m2.match_key) >= 20 ")
+        .append(") player_matches ON player_matches.player_key = mps.player_key ")
+        
+        .append("CROSS APPLY ( ")
+        .append("    SELECT value AS last_frame, ")
+        .append("           ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) AS rn ")
+        .append("    FROM STRING_SPLIT(mps.frame_scores, ';') ")
+        .append(") AS frames ")
+        .append("WHERE rn = (SELECT COUNT(*) FROM STRING_SPLIT(mps.frame_scores, ';')) ")
+        .append("AND mps.frame_scores IS NOT NULL ")
+        .append("AND ( ")
+        .append("    SELECT COUNT(*) FROM STRING_SPLIT(mps.frame_scores, ';') ")
+        .append(") = (m.winner_score + m.loser_score) ")
+        .append("AND (m.winner_score + m.loser_score) = (2 * m.winner_score - 1) ")
+        .append("AND m.match_date >= :dateFrom ")
+        .append("AND m.match_date <= :dateTo ");
 
-        setAdditionalFieldsInQuery(sql, tournament, year, eventKey);
+    setAdditionalFieldsInQuery(sql, tournament, year, eventKey);
 
-        sql.append("GROUP BY mps.player_key, p.player_name, p.country_name ")
-            .append("ORDER BY break_percentage ").append(Boolean.TRUE.equals(orderAsc) ? "ASC" : "DESC");
+    sql.append("GROUP BY mps.player_key, p.player_name, p.country_name, player_matches.total_matches ")
+        .append("ORDER BY break_percentage ").append(Boolean.TRUE.equals(orderAsc) ? "ASC" : "DESC");
 
-        Query query = entityManager.createNativeQuery(sql.toString());
-        query.setParameter("dateFrom", dateFrom);
-        query.setParameter("dateTo", dateTo);
-        setAdditionalParameters(query, year, eventKey);
+    Query query = entityManager.createNativeQuery(sql.toString());
+    query.setParameter("dateFrom", dateFrom);
+    query.setParameter("dateTo", dateTo);
+    setAdditionalParameters(query, year, eventKey);
 
-        return query.getResultList();
-    }
+    return query.getResultList();
+}
+private List<Object[]> getSeventyPlusBreaksInDeciders(
+    TournamentDTO tournament,
+    Integer year,
+    Integer eventKey,
+    LocalDate dateFrom,
+    LocalDate dateTo,
+    Boolean orderAsc,
+    Integer topLimit) {
 
-    private List<Object[]> getSeventyPlusBreaksInDeciders(
-        TournamentDTO tournament,
-        Integer year,
-        Integer eventKey,
-        LocalDate dateFrom,
-        LocalDate dateTo,
-        Boolean orderAsc,
-        Integer topLimit) {
+    StringBuilder sql = new StringBuilder();
 
-        StringBuilder sql = new StringBuilder();
+    sql.append("SELECT TOP ").append(topLimit).append(" ")
+        .append("mps.player_key, ")
+        .append("p.player_name, ")
+        .append("p.country_name, ")
+        .append("SUM(CASE WHEN ")
+        .append("    CHARINDEX('(', last_frame) > 0 AND ")
+        .append("    TRY_CAST(SUBSTRING(last_frame, CHARINDEX('(', last_frame) + 1, ")
+        .append("        CHARINDEX(')', last_frame) - CHARINDEX('(', last_frame) - 1) AS INT) >= 70 ")
+        .append("    THEN 1 ELSE 0 END) AS breaks_70_plus, ")
+        .append("COUNT(*) AS total_deciding_frames, ")
+        .append("CAST(SUM(CASE WHEN ")
+        .append("    CHARINDEX('(', last_frame) > 0 AND ")
+        .append("    TRY_CAST(SUBSTRING(last_frame, CHARINDEX('(', last_frame) + 1, ")
+        .append("        CHARINDEX(')', last_frame) - CHARINDEX('(', last_frame) - 1) AS INT) >= 70 ")
+        .append("    THEN 1 ELSE 0 END) * 100.0 / COUNT(*) AS DECIMAL(5,2)) AS break_percentage, ")
+        
+        // ✅ ADD: Total matches played
+        .append("player_matches.total_matches AS total_matches_played ")
+        
+        .append("FROM match_player_stats mps ")
+        .append("JOIN player p ON mps.player_key = p.player_key ")
+        .append("JOIN match m ON mps.match_key = m.match_key ")
+        .append("JOIN event e ON m.event_key = e.event_key ")
+        .append("JOIN tournament t ON e.tournament_key = t.tournament_key ")
+        
+        // ✅ ADD: JOIN to get total matches count
+        .append("JOIN ( ")
+        .append("    SELECT mps2.player_key, COUNT(DISTINCT m2.match_key) AS total_matches ")
+        .append("    FROM match_player_stats mps2 ")
+        .append("    JOIN match m2 ON m2.match_key = mps2.match_key ")
+        .append("    WHERE m2.winner_key IS NOT NULL ")
+        .append("      AND m2.loser_key IS NOT NULL ")
+        .append("      AND m2.match_date >= :dateFrom ")
+        .append("      AND m2.match_date <= :dateTo ")
+        .append("    GROUP BY mps2.player_key ")
+        .append("    HAVING COUNT(DISTINCT m2.match_key) >= 20 ")
+        .append(") player_matches ON player_matches.player_key = mps.player_key ")
+        
+        .append("CROSS APPLY ( ")
+        .append("    SELECT value AS last_frame, ")
+        .append("           ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) AS rn ")
+        .append("    FROM STRING_SPLIT(mps.frame_scores, ';') ")
+        .append(") AS frames ")
+        .append("WHERE rn = (SELECT COUNT(*) FROM STRING_SPLIT(mps.frame_scores, ';')) ")
+        .append("AND mps.frame_scores IS NOT NULL ")
+        .append("AND ( ")
+        .append("    SELECT COUNT(*) FROM STRING_SPLIT(mps.frame_scores, ';') ")
+        .append(") = (m.winner_score + m.loser_score) ")
+        .append("AND (m.winner_score + m.loser_score) = (2 * m.winner_score - 1) ")
+        .append("AND m.match_date >= :dateFrom ")
+        .append("AND m.match_date <= :dateTo ");
 
-        sql.append("SELECT TOP ").append(topLimit).append(" ")
-            .append("mps.player_key, ")
-            .append("p.player_name, ")
-            .append("p.country_name, ")
-            .append("SUM(CASE WHEN ")
-            .append("    CHARINDEX('(', last_frame) > 0 AND ")
-            .append("    TRY_CAST(SUBSTRING(last_frame, CHARINDEX('(', last_frame) + 1, ")
-            .append("        CHARINDEX(')', last_frame) - CHARINDEX('(', last_frame) - 1) AS INT) >= 70 ")
-            .append("    THEN 1 ELSE 0 END) AS breaks_50_plus, ") // row[3]
-            .append("COUNT(*) AS total_deciding_frames, ")        // row[4]
-            .append("CAST(SUM(CASE WHEN ")
-            .append("    CHARINDEX('(', last_frame) > 0 AND ")
-            .append("    TRY_CAST(SUBSTRING(last_frame, CHARINDEX('(', last_frame) + 1, ")
-            .append("        CHARINDEX(')', last_frame) - CHARINDEX('(', last_frame) - 1) AS INT) >= 70 ")
-            .append("    THEN 1 ELSE 0 END) * 100.0 / COUNT(*) AS DECIMAL(5,2)) AS break_percentage ") // row[5]
-            .append("FROM match_player_stats mps ")
-            .append("JOIN player p ON mps.player_key = p.player_key ")
-            .append("JOIN match m ON mps.match_key = m.match_key ")
-            .append("JOIN event e ON m.event_key = e.event_key ")
-            .append("JOIN tournament t ON e.tournament_key = t.tournament_key ")
-            .append("CROSS APPLY ( ")
-            .append("    SELECT value AS last_frame, ")
-            .append("           ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) AS rn ")
-            .append("    FROM STRING_SPLIT(mps.frame_scores, ';') ")
-            .append(") AS frames ")
-            .append("WHERE rn = (SELECT COUNT(*) FROM STRING_SPLIT(mps.frame_scores, ';')) ") // ✅ Get last frame only
-            .append("AND mps.frame_scores IS NOT NULL ")
-            .append("AND ( ")
-            .append("    SELECT COUNT(*) FROM STRING_SPLIT(mps.frame_scores, ';') ")
-            .append(") = (m.winner_score + m.loser_score) ") 
-            .append("AND (m.winner_score + m.loser_score) = (2 * m.winner_score - 1) ")
-            .append("AND m.match_date >= :dateFrom ")
-            .append("AND m.match_date <= :dateTo ");
+    setAdditionalFieldsInQuery(sql, tournament, year, eventKey);
 
-        setAdditionalFieldsInQuery(sql, tournament, year, eventKey);
+    sql.append("GROUP BY mps.player_key, p.player_name, p.country_name, player_matches.total_matches ")
+        .append("ORDER BY break_percentage ").append(Boolean.TRUE.equals(orderAsc) ? "ASC" : "DESC");
 
-        sql.append("GROUP BY mps.player_key, p.player_name, p.country_name ")
-            .append("ORDER BY break_percentage ").append(Boolean.TRUE.equals(orderAsc) ? "ASC" : "DESC");
+    Query query = entityManager.createNativeQuery(sql.toString());
+    query.setParameter("dateFrom", dateFrom);
+    query.setParameter("dateTo", dateTo);
+    setAdditionalParameters(query, year, eventKey);
 
-        Query query = entityManager.createNativeQuery(sql.toString());
-        query.setParameter("dateFrom", dateFrom);
-        query.setParameter("dateTo", dateTo);
-        setAdditionalParameters(query, year, eventKey);
+    return query.getResultList();
+}
 
-        return query.getResultList();
-    }
+private List<Object[]> getHundredPlusBreaksInDeciders(
+    TournamentDTO tournament,
+    Integer year,
+    Integer eventKey,
+    LocalDate dateFrom,
+    LocalDate dateTo,
+    Boolean orderAsc,
+    Integer topLimit) {
 
-    private List<Object[]> getHundredPlusBreaksInDeciders(
-        TournamentDTO tournament,
-        Integer year,
-        Integer eventKey,
-        LocalDate dateFrom,
-        LocalDate dateTo,
-        Boolean orderAsc,
-        Integer topLimit) {
+    StringBuilder sql = new StringBuilder();
 
-        StringBuilder sql = new StringBuilder();
+    sql.append("SELECT TOP ").append(topLimit).append(" ")
+        .append("mps.player_key, ")
+        .append("p.player_name, ")
+        .append("p.country_name, ")
+        .append("SUM(CASE WHEN ")
+        .append("    CHARINDEX('(', last_frame) > 0 AND ")
+        .append("    TRY_CAST(SUBSTRING(last_frame, CHARINDEX('(', last_frame) + 1, ")
+        .append("        CHARINDEX(')', last_frame) - CHARINDEX('(', last_frame) - 1) AS INT) >= 100 ")
+        .append("    THEN 1 ELSE 0 END) AS breaks_100_plus, ")
+        .append("COUNT(*) AS total_deciding_frames, ")
+        .append("CAST(SUM(CASE WHEN ")
+        .append("    CHARINDEX('(', last_frame) > 0 AND ")
+        .append("    TRY_CAST(SUBSTRING(last_frame, CHARINDEX('(', last_frame) + 1, ")
+        .append("        CHARINDEX(')', last_frame) - CHARINDEX('(', last_frame) - 1) AS INT) >= 100 ")
+        .append("    THEN 1 ELSE 0 END) * 100.0 / COUNT(*) AS DECIMAL(5,2)) AS break_percentage, ")
+        
+        // ✅ ADD: Total matches played
+        .append("player_matches.total_matches AS total_matches_played ")
+        
+        .append("FROM match_player_stats mps ")
+        .append("JOIN player p ON mps.player_key = p.player_key ")
+        .append("JOIN match m ON mps.match_key = m.match_key ")
+        .append("JOIN event e ON m.event_key = e.event_key ")
+        .append("JOIN tournament t ON e.tournament_key = t.tournament_key ")
+        
+        // ✅ ADD: JOIN to get total matches count
+        .append("JOIN ( ")
+        .append("    SELECT mps2.player_key, COUNT(DISTINCT m2.match_key) AS total_matches ")
+        .append("    FROM match_player_stats mps2 ")
+        .append("    JOIN match m2 ON m2.match_key = mps2.match_key ")
+        .append("    WHERE m2.winner_key IS NOT NULL ")
+        .append("      AND m2.loser_key IS NOT NULL ")
+        .append("      AND m2.match_date >= :dateFrom ")
+        .append("      AND m2.match_date <= :dateTo ")
+        .append("    GROUP BY mps2.player_key ")
+        .append("    HAVING COUNT(DISTINCT m2.match_key) >= 20 ")
+        .append(") player_matches ON player_matches.player_key = mps.player_key ")
+        
+        .append("CROSS APPLY ( ")
+        .append("    SELECT value AS last_frame, ")
+        .append("           ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) AS rn ")
+        .append("    FROM STRING_SPLIT(mps.frame_scores, ';') ")
+        .append(") AS frames ")
+        .append("WHERE rn = (SELECT COUNT(*) FROM STRING_SPLIT(mps.frame_scores, ';')) ")
+        .append("AND mps.frame_scores IS NOT NULL ")
+        .append("AND ( ")
+        .append("    SELECT COUNT(*) FROM STRING_SPLIT(mps.frame_scores, ';') ")
+        .append(") = (m.winner_score + m.loser_score) ")
+        .append("AND (m.winner_score + m.loser_score) = (2 * m.winner_score - 1) ")
+        .append("AND m.match_date >= :dateFrom ")
+        .append("AND m.match_date <= :dateTo ");
 
-        sql.append("SELECT TOP ").append(topLimit).append(" ")
-            .append("mps.player_key, ")
-            .append("p.player_name, ")
-            .append("p.country_name, ")
-            .append("SUM(CASE WHEN ")
-            .append("    CHARINDEX('(', last_frame) > 0 AND ")
-            .append("    TRY_CAST(SUBSTRING(last_frame, CHARINDEX('(', last_frame) + 1, ")
-            .append("        CHARINDEX(')', last_frame) - CHARINDEX('(', last_frame) - 1) AS INT) >= 100 ")
-            .append("    THEN 1 ELSE 0 END) AS breaks_50_plus, ") // row[3]
-            .append("COUNT(*) AS total_deciding_frames, ")        // row[4]
-            .append("CAST(SUM(CASE WHEN ")
-            .append("    CHARINDEX('(', last_frame) > 0 AND ")
-            .append("    TRY_CAST(SUBSTRING(last_frame, CHARINDEX('(', last_frame) + 1, ")
-            .append("        CHARINDEX(')', last_frame) - CHARINDEX('(', last_frame) - 1) AS INT) >= 100 ")
-            .append("    THEN 1 ELSE 0 END) * 100.0 / COUNT(*) AS DECIMAL(5,2)) AS break_percentage ") // row[5]
-            .append("FROM match_player_stats mps ")
-            .append("JOIN player p ON mps.player_key = p.player_key ")
-            .append("JOIN match m ON mps.match_key = m.match_key ")
-            .append("JOIN event e ON m.event_key = e.event_key ")
-            .append("JOIN tournament t ON e.tournament_key = t.tournament_key ")
-            .append("CROSS APPLY ( ")
-            .append("    SELECT value AS last_frame, ")
-            .append("           ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) AS rn ")
-            .append("    FROM STRING_SPLIT(mps.frame_scores, ';') ")
-            .append(") AS frames ")
-            .append("WHERE rn = (SELECT COUNT(*) FROM STRING_SPLIT(mps.frame_scores, ';')) ") // ✅ Get last frame only
-            .append("AND mps.frame_scores IS NOT NULL ")
-            .append("AND ( ")
-            .append("    SELECT COUNT(*) FROM STRING_SPLIT(mps.frame_scores, ';') ")
-            .append(") = (m.winner_score + m.loser_score) ") 
-            .append("AND (m.winner_score + m.loser_score) = (2 * m.winner_score - 1) ")
-            .append("AND m.match_date >= :dateFrom ")
-            .append("AND m.match_date <= :dateTo ");
+    setAdditionalFieldsInQuery(sql, tournament, year, eventKey);
 
-        setAdditionalFieldsInQuery(sql, tournament, year, eventKey);
+    sql.append("GROUP BY mps.player_key, p.player_name, p.country_name, player_matches.total_matches ")
+        .append("ORDER BY break_percentage ").append(Boolean.TRUE.equals(orderAsc) ? "ASC" : "DESC");
 
-        sql.append("GROUP BY mps.player_key, p.player_name, p.country_name ")
-            .append("ORDER BY break_percentage ").append(Boolean.TRUE.equals(orderAsc) ? "ASC" : "DESC");
+    Query query = entityManager.createNativeQuery(sql.toString());
+    query.setParameter("dateFrom", dateFrom);
+    query.setParameter("dateTo", dateTo);
+    setAdditionalParameters(query, year, eventKey);
 
-        Query query = entityManager.createNativeQuery(sql.toString());
-        query.setParameter("dateFrom", dateFrom);
-        query.setParameter("dateTo", dateTo);
-        setAdditionalParameters(query, year, eventKey);
-
-        return query.getResultList();
-    }
+    return query.getResultList();
+}
 
     private List<Object[]> getOpeningFrameWinPercentage(
         TournamentDTO tournament,

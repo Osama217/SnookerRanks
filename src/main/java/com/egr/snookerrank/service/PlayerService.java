@@ -100,52 +100,56 @@ public class PlayerService {
 
     }
 
-    public List<PlayerStats> fetchPlayerStats(LocalDate dDateFrom, LocalDate dDateTo, Integer eventKey, TournamentDTO tournament, Integer year, Integer rankKey, Integer minMatches) {
-        List<Object[]> result = null;
-        RankText rankText;
-        if (rankKey.equals(50) || rankKey.equals(51) || rankKey.equals(52) || rankKey.equals(53) || rankKey.equals(54)) {
-           rankText = new RankText();
-            result = playerStatsRepository.findPlayersWithFilters(dDateFrom, dDateTo, eventKey, tournament, year, rankKey);
-
-        } else {
-             rankText = rankTextRepository.findByRankTextKey(rankKey);
-            if (rankText != null && rankText.isMatchStat()) {
-                result = playerStatsRepository.findPlayersWithStatsRankingFilters(rankText.getStatType(), rankText.getField1(), rankText.getField2(),
-                        tournament, year, eventKey, dDateFrom, dDateTo, minMatches, rankText.isOrderAsc(), 500);
-            }
+public List<PlayerStats> fetchPlayerStats(LocalDate dDateFrom, LocalDate dDateTo, Integer eventKey, TournamentDTO tournament, Integer year, Integer rankKey, Integer minMatches) {
+    List<Object[]> result = null;
+    RankText rankText = rankTextRepository.findByRankTextKey(rankKey);  // ✅ ALWAYS get rankText first
+    
+    if (rankKey.equals(50) || rankKey.equals(51) || rankKey.equals(52) || rankKey.equals(53) || rankKey.equals(54)) {
+        result = playerStatsRepository.findPlayersWithFilters(dDateFrom, dDateTo, eventKey, tournament, year, rankKey);
+    } else {
+        if (rankText != null && rankText.isMatchStat()) {
+            result = playerStatsRepository.findPlayersWithStatsRankingFilters(rankText.getStatType(), rankText.getField1(), rankText.getField2(),
+                    tournament, year, eventKey, dDateFrom, dDateTo, minMatches, rankText.isOrderAsc(), 500);
         }
-        List<PlayerStats> ranksDTOList = result.stream().map(row -> {
-            if (row.length > 4) {
-                Number n1 =  null;
-                if(row.length > 5 && row[5] != null ) {
-                   if(rankText.getStatType().equals("P")) {
-                        n1 = new BigDecimal(((Number) row[5]).doubleValue() *100).setScale(2, RoundingMode.HALF_UP);
-                    }else{
-                       n1 = new BigDecimal(((Number) row[5]).doubleValue()).setScale(2, RoundingMode.HALF_UP);
-                   }
-                }
-
-                return new PlayerStats(
-                        (Integer) row[0],
-                        (String) row[1],
-                        (String) row[2],
-                        n1,
-                        (Number) row[3],
-                        (Number) row[4],
-                         ((Number) row[3]).intValue() + "/" + ((Number) row[4]).intValue()
-                );
-            } else {
-                return new PlayerStats(
-                        (Integer) row[0],
-                        (String) row[1],
-                        (String) row[2],
-                        (Number) row[3]
-                );
-            }
-        }).collect(Collectors.toList());
-        return ranksDTOList;
-
     }
+    
+    List<PlayerStats> ranksDTOList = result.stream().map(row -> {
+        if (row.length > 4) {
+            Number n1 = null;
+            if(row.length > 5 && row[5] != null) {
+                // ✅ Check if rankText exists before using it
+                if(rankText != null && rankText.getStatType().equals("P")) {
+                    n1 = new BigDecimal(((Number) row[5]).doubleValue() * 100).setScale(2, RoundingMode.HALF_UP);
+                } else {
+                    n1 = new BigDecimal(((Number) row[5]).doubleValue()).setScale(2, RoundingMode.HALF_UP);
+                }
+            }
+
+            Number matchesPlayed = null;
+            if(row.length > 6 && row[6] != null) {
+                matchesPlayed = (Number) row[6];
+            }
+
+            return new PlayerStats(
+                    (Integer) row[0],
+                    (String) row[1],
+                    (String) row[2],
+                    n1,
+                    (Number) row[3],
+                    (Number) row[4],
+                    matchesPlayed
+            );
+        } else {
+            return new PlayerStats(
+                    (Integer) row[0],
+                    (String) row[1],
+                    (String) row[2],
+                    (Number) row[3]
+            );
+        }
+    }).collect(Collectors.toList());
+    return ranksDTOList;
+}
 
     public List<TopPlayersDTO> searchPlayer(String name) {
         String formattedSearchString = name.replace("_", " ");
@@ -790,41 +794,46 @@ public class PlayerService {
         rankingDTO.setPlayers(playerDTOS);
     return rankingDTO;
     }
-
-    public  List<PlayerStats> playerDetailStats(Integer playerKey,Integer rankKey) {
-        RankText rankText = rankTextRepository.findByRankTextKey(rankKey);
-        List<Object[]> result;
-        if (rankText != null && rankText.isMatchStat()) {
-            LocalDate dDateTo = LocalDate.now(); // Today's date
-            LocalDate dDateFrom = dDateTo.minusYears(1); // One year ago
-            result = playerStatsRepository.findPlayersWithStatsRankingFilters(rankText.getStatType(), rankText.getField1(), rankText.getField2(),
-                    null, null, null, dDateFrom, dDateTo, 20, rankText.isOrderAsc(), 32);
-            List<PlayerStats> ranksDTOList = result.stream().map(row -> {
-                if (row.length > 4) {
-                    return new PlayerStats(
-                            (Integer) row[0],
-                            (String) row[1],
-                            (String) row[2],
-                            row.length > 5 && row[5] != null ?
-                                    new BigDecimal(((Number) row[5]).doubleValue()).setScale(2, RoundingMode.HALF_UP)
-                                    : null,
-                            (Number) row[3],
-                            (Number) row[4]
-                    );
-                } else {
-                    return new PlayerStats(
-                            (Integer) row[0],
-                            (String) row[1],
-                            (String) row[2],
-                            (Number) row[3]
-                    );
+public List<PlayerStats> playerDetailStats(Integer playerKey, Integer rankKey) {
+    RankText rankText = rankTextRepository.findByRankTextKey(rankKey);
+    List<Object[]> result;
+    if (rankText != null && rankText.isMatchStat()) {
+        LocalDate dDateTo = LocalDate.now();
+        LocalDate dDateFrom = dDateTo.minusYears(1);
+        result = playerStatsRepository.findPlayersWithStatsRankingFilters(rankText.getStatType(), rankText.getField1(), rankText.getField2(),
+                null, null, null, dDateFrom, dDateTo, 20, rankText.isOrderAsc(), 32);
+        List<PlayerStats> ranksDTOList = result.stream().map(row -> {
+            if (row.length > 4) {
+                // ✅ Extract matchesPlayed from row[6]
+                Number matchesPlayed = null;
+                if (row.length > 6 && row[6] != null) {
+                    matchesPlayed = (Number) row[6];
                 }
-            }).collect(Collectors.toList());
-            return ranksDTOList;
-
-        }
-        return null;
+                
+                return new PlayerStats(
+                        (Integer) row[0],
+                        (String) row[1],
+                        (String) row[2],
+                        row.length > 5 && row[5] != null ?
+                                new BigDecimal(((Number) row[5]).doubleValue()).setScale(2, RoundingMode.HALF_UP)
+                                : null,
+                        (Number) row[3],
+                        (Number) row[4],
+                        matchesPlayed  // ✅ ADD THIS 7th PARAMETER!
+                );
+            } else {
+                return new PlayerStats(
+                        (Integer) row[0],
+                        (String) row[1],
+                        (String) row[2],
+                        (Number) row[3]
+                );
+            }
+        }).collect(Collectors.toList());
+        return ranksDTOList;
     }
+    return null;
+}
 
     public MatchPlayerStatsDTO getMatchPlayerStats(Integer matchKey, Integer winnerKey, Integer losserKey) {
         MatchPlayerStatsDTO dto = null;

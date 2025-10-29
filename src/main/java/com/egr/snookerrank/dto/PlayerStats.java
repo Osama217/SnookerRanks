@@ -5,7 +5,6 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
@@ -15,12 +14,14 @@ public class PlayerStats {
     private String playerName;
     private String countryName;
     private Number stats;
-    private Number seventyBreaks ;
-    private Number framesPlayed ;
+    private Number seventyBreaks;
+    private Number framesPlayed;
+        @JsonInclude(JsonInclude.Include.ALWAYS)  // ✅ ADD THIS LINE - force it to always show
+
+    private Number matchesPlayed;  // ✅ NEW FIELD
     private String details;
 
-
-    public PlayerStats( Integer playerKey, String playerName,String countryName,Number stats) {
+    public PlayerStats(Integer playerKey, String playerName, String countryName, Number stats) {
         this.stats = stats;
         this.countryName = countryName;
         this.playerName = playerName;
@@ -34,5 +35,17 @@ public class PlayerStats {
         this.stats = stats;
         this.seventyBreaks = seventyBreaks;
         this.framesPlayed = framesPlayed;
+        
+    }
+
+    // ✅ NEW CONSTRUCTOR with matchesPlayed
+    public PlayerStats(Integer playerKey, String playerName, String countryName, Number stats, Number seventyBreaks, Number framesPlayed, Number matchesPlayed) {
+        this.playerKey = playerKey;
+        this.playerName = playerName;
+        this.countryName = countryName;
+        this.stats = stats;
+        this.seventyBreaks = seventyBreaks;
+        this.framesPlayed = framesPlayed;
+        this.matchesPlayed = matchesPlayed;
     }
 }
