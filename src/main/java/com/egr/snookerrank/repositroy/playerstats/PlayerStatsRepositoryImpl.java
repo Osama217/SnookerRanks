@@ -891,35 +891,45 @@ private List<Object[]> getHundredPlusBreaksInDeciders(
         .append("p.country_name, ")
         // Count matches where both first AND second frames were won
         .append("SUM(CASE ")
-        .append("  WHEN ")
-        .append("    TRY_CAST(LEFT(opening_frame1, CHARINDEX('-', opening_frame1) - 1) AS INT) > ")
-        .append("      TRY_CAST(SUBSTRING(opening_frame1, CHARINDEX('-', opening_frame1) + 1, 5) AS INT) ")
-        .append("  AND ")
-        .append("    TRY_CAST(LEFT(opening_frame2, CHARINDEX('-', opening_frame2) - 1) AS INT) > ")
-        .append("      TRY_CAST(SUBSTRING(opening_frame2, CHARINDEX('-', opening_frame2) + 1, 5) AS INT) ")
+        .append("  WHEN frame1_player_score > frame1_opp_score ")
+        .append("   AND frame2_player_score > frame2_opp_score ")
         .append("  THEN 1 ELSE 0 END) AS opening_2_frames_won, ")
-        // Denominator: matches with both frames present
+        // Denominator: matches with both frames successfully parsed
         .append("COUNT(DISTINCT mps.match_key) AS total_opening_2_frames, ")
         .append("CAST(SUM(CASE ")
-        .append("    WHEN TRY_CAST(LEFT(opening_frame1, CHARINDEX('-', opening_frame1) - 1) AS INT) > ")
-        .append("           TRY_CAST(SUBSTRING(opening_frame1, CHARINDEX('-', opening_frame1) + 1, 5) AS INT) ")
-        .append("     AND TRY_CAST(LEFT(opening_frame2, CHARINDEX('-', opening_frame2) - 1) AS INT) > ")
-        .append("           TRY_CAST(SUBSTRING(opening_frame2, CHARINDEX('-', opening_frame2) + 1, 5) AS INT) ")
+        .append("  WHEN frame1_player_score > frame1_opp_score ")
+        .append("   AND frame2_player_score > frame2_opp_score ")
         .append("  THEN 1 ELSE 0 END) * 100.0 / COUNT(DISTINCT mps.match_key) AS DECIMAL(5,2)) AS win_percentage ")
         .append("FROM match_player_stats mps ")
         .append("JOIN player p ON mps.player_key = p.player_key ")
         .append("JOIN match m ON m.match_key = mps.match_key ")
         .append("JOIN event e ON m.event_key = e.event_key ")
         .append("JOIN tournament t ON e.tournament_key = t.tournament_key ")
-        // Get first frame
+        // Get first frame and clean it
         .append("CROSS APPLY ( ")
-        .append("  SELECT TOP 1 value AS opening_frame1 ")
+        .append("  SELECT TOP 1 ")
+        .append("    CASE ")
+        .append("      WHEN CHARINDEX('(', value) > 0 ")
+        .append("      THEN LTRIM(RTRIM( ")
+        .append("        LEFT(value, CHARINDEX('(', value) - 1) + ")
+        .append("        SUBSTRING(value, CHARINDEX(')', value) + 1, LEN(value)) ")
+        .append("      )) ")
+        .append("      ELSE value ")
+        .append("    END AS opening_frame1 ")
         .append("  FROM STRING_SPLIT(mps.frame_scores, ';') ")
         .append("  WHERE CHARINDEX('-', value) > 0 ")
         .append(") AS fd1 ")
-        // Get second frame
+        // Get second frame and clean it
         .append("CROSS APPLY ( ")
-        .append("  SELECT TOP 1 value AS opening_frame2 ")
+        .append("  SELECT TOP 1 ")
+        .append("    CASE ")
+        .append("      WHEN CHARINDEX('(', value) > 0 ")
+        .append("      THEN LTRIM(RTRIM( ")
+        .append("        LEFT(value, CHARINDEX('(', value) - 1) + ")
+        .append("        SUBSTRING(value, CHARINDEX(')', value) + 1, LEN(value)) ")
+        .append("      )) ")
+        .append("      ELSE value ")
+        .append("    END AS opening_frame2 ")
         .append("  FROM ( ")
         .append("    SELECT value, ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) AS rn ")
         .append("    FROM STRING_SPLIT(mps.frame_scores, ';') ")
@@ -927,13 +937,25 @@ private List<Object[]> getHundredPlusBreaksInDeciders(
         .append("  ) x ")
         .append("  WHERE rn = 2 ")
         .append(") AS fd2 ")
+        // Parse frame 1 scores
+        .append("CROSS APPLY ( ")
+        .append("  SELECT ")
+        .append("    TRY_CAST(LTRIM(RTRIM(LEFT(fd1.opening_frame1, CHARINDEX('-', fd1.opening_frame1) - 1))) AS INT) AS frame1_player_score, ")
+        .append("    TRY_CAST(LTRIM(RTRIM(SUBSTRING(fd1.opening_frame1, CHARINDEX('-', fd1.opening_frame1) + 1, 100))) AS INT) AS frame1_opp_score ")
+        .append(") AS parsed1 ")
+        // Parse frame 2 scores
+        .append("CROSS APPLY ( ")
+        .append("  SELECT ")
+        .append("    TRY_CAST(LTRIM(RTRIM(LEFT(fd2.opening_frame2, CHARINDEX('-', fd2.opening_frame2) - 1))) AS INT) AS frame2_player_score, ")
+        .append("    TRY_CAST(LTRIM(RTRIM(SUBSTRING(fd2.opening_frame2, CHARINDEX('-', fd2.opening_frame2) + 1, 100))) AS INT) AS frame2_opp_score ")
+        .append(") AS parsed2 ")
         .append("WHERE m.match_date >= :dateFrom ")
         .append("AND m.match_date <= :dateTo ")
         .append("AND mps.frame_scores IS NOT NULL ")
         // Only completed matches
         .append("AND m.winner_key IS NOT NULL ")
-        .append("AND m.loser_key  IS NOT NULL ")
-        // Only players with >= 20 matches
+        .append("AND m.loser_key IS NOT NULL ")
+        // Only players with >= 30 matches
         .append("AND mps.player_key IN ( ")
         .append("  SELECT mps2.player_key ")
         .append("  FROM match_player_stats mps2 ")
@@ -943,9 +965,13 @@ private List<Object[]> getHundredPlusBreaksInDeciders(
         .append("  GROUP BY mps2.player_key ")
         .append("  HAVING COUNT(DISTINCT m2.match_key) >= 30 ")
         .append(") ")
-        // Only matches where both frames are present
+        // Only matches where both frames are present AND successfully parsed
         .append("AND fd1.opening_frame1 IS NOT NULL ")
         .append("AND fd2.opening_frame2 IS NOT NULL ")
+        .append("AND parsed1.frame1_player_score IS NOT NULL ")
+        .append("AND parsed1.frame1_opp_score IS NOT NULL ")
+        .append("AND parsed2.frame2_player_score IS NOT NULL ")
+        .append("AND parsed2.frame2_opp_score IS NOT NULL ")
         .append("GROUP BY mps.player_key, p.player_name, p.country_name ")
         .append("ORDER BY win_percentage ").append(Boolean.TRUE.equals(orderAsc) ? "ASC" : "DESC");
 
@@ -956,6 +982,5 @@ private List<Object[]> getHundredPlusBreaksInDeciders(
 
         return query.getResultList();
     }
-
 
 }
