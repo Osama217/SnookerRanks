@@ -497,63 +497,120 @@ public interface PlayerRepository extends JpaRepository<Player, Integer> {
         "\n" +
         "    (\n" +
         "        SELECT CAST(\n" +
-        "            SUM(CASE WHEN TRY_CAST(LEFT(opening_frame, CHARINDEX('-', opening_frame) - 1) AS INT) > \n" +
-        "                       TRY_CAST(SUBSTRING(opening_frame, CHARINDEX('-', opening_frame) + 1, 5) AS INT) \n" +
-        "                THEN 1 ELSE 0 END) * 100.0 /\n" +
-        "            NULLIF(COUNT(DISTINCT m2.match_key), 0) AS DECIMAL(5,2)\n" +
+        "            SUM(CASE WHEN scores.player_score > scores.opp_score THEN 1 ELSE 0 END) * 100.0 /\n" +
+        "            NULLIF(COUNT(DISTINCT CASE WHEN scores.player_score IS NOT NULL THEN mps2.match_key END), 0) AS DECIMAL(5,2)\n" +
         "        )\n" +
         "        FROM match_player_stats mps2\n" +
         "        JOIN match m2 ON m2.match_key = mps2.match_key\n" +
+        "        -- Extract first frame before ';'\n" +
         "        CROSS APPLY (\n" +
-        "            SELECT TOP 1 value AS opening_frame \n" +
-        "            FROM STRING_SPLIT(mps2.frame_scores, ';') \n" +
+        "            SELECT CASE\n" +
+        "                WHEN mps2.frame_scores IS NULL OR LTRIM(RTRIM(mps2.frame_scores)) = '' THEN NULL\n" +
+        "                WHEN CHARINDEX(';', mps2.frame_scores) > 0\n" +
+        "                    THEN LEFT(mps2.frame_scores, CHARINDEX(';', mps2.frame_scores) - 1)\n" +
+        "                ELSE mps2.frame_scores\n" +
+        "            END AS opening_frame_raw\n" +
+        "        ) AS raw\n" +
+        "        -- Remove parentheses content: 116(71)-7 becomes 116-7\n" +
+        "        CROSS APPLY (\n" +
+        "            SELECT CASE\n" +
+        "                WHEN raw.opening_frame_raw IS NULL THEN NULL\n" +
+        "                WHEN CHARINDEX('(', raw.opening_frame_raw) = 0 THEN raw.opening_frame_raw\n" +
+        "                ELSE LTRIM(RTRIM(\n" +
+        "                    LEFT(raw.opening_frame_raw, CHARINDEX('(', raw.opening_frame_raw) - 1) +\n" +
+        "                    SUBSTRING(raw.opening_frame_raw, CHARINDEX(')', raw.opening_frame_raw) + 1, LEN(raw.opening_frame_raw))\n" +
+        "                ))\n" +
+        "            END AS opening_frame_clean\n" +
+        "        ) AS cleaned\n" +
+        "        -- Parse player and opponent scores\n" +
+        "        CROSS APPLY (\n" +
+        "            SELECT\n" +
+        "                CASE WHEN cleaned.opening_frame_clean IS NOT NULL\n" +
+        "                    AND CHARINDEX('-', cleaned.opening_frame_clean) > 0\n" +
+        "                    THEN TRY_CAST(LTRIM(RTRIM(LEFT(cleaned.opening_frame_clean, CHARINDEX('-', cleaned.opening_frame_clean) - 1))) AS INT)\n" +
+        "                    ELSE NULL END AS player_score,\n" +
+        "                CASE WHEN cleaned.opening_frame_clean IS NOT NULL\n" +
+        "                    AND CHARINDEX('-', cleaned.opening_frame_clean) > 0\n" +
+        "                    THEN TRY_CAST(LTRIM(RTRIM(SUBSTRING(cleaned.opening_frame_clean, CHARINDEX('-', cleaned.opening_frame_clean) + 1, 100))) AS INT)\n" +
+        "                    ELSE NULL END AS opp_score\n" +
+        "        ) AS scores\n" +
+        "        WHERE mps2.player_key = :playerKey\n" +
+        "          AND m2.winner_key IS NOT NULL\n" +
+        "          AND m2.loser_key IS NOT NULL\n" +
+        "          AND m2.match_date >= :fromDate\n" +
+        "          AND m2.match_date <= :toDate\n" +
+        "    ) AS opening_frame_win_percentage\n" +
+        "\n, " +
+        // opening 2
+        "    (\n" +
+        "        SELECT CAST(\n" +
+        "            SUM(CASE\n" +
+        "                WHEN parsed1.frame1_player_score > parsed1.frame1_opp_score\n" +
+        "                 AND parsed2.frame2_player_score > parsed2.frame2_opp_score\n" +
+        "                THEN 1 ELSE 0 END) * 100.0 /\n" +
+        "            NULLIF(COUNT(DISTINCT mps2.match_key), 0) AS DECIMAL(5,2)\n" +
+        "        )\n" +
+        "        FROM match_player_stats mps2\n" +
+        "        JOIN match m2 ON m2.match_key = mps2.match_key\n" +
+        "        -- Get first frame and clean it\n" +
+        "        CROSS APPLY (\n" +
+        "            SELECT TOP 1\n" +
+        "                CASE\n" +
+        "                    WHEN CHARINDEX('(', value) > 0\n" +
+        "                    THEN LTRIM(RTRIM(\n" +
+        "                        LEFT(value, CHARINDEX('(', value) - 1) +\n" +
+        "                        SUBSTRING(value, CHARINDEX(')', value) + 1, LEN(value))\n" +
+        "                    ))\n" +
+        "                    ELSE value\n" +
+        "                END AS opening_frame1\n" +
+        "            FROM STRING_SPLIT(mps2.frame_scores, ';')\n" +
         "            WHERE CHARINDEX('-', value) > 0\n" +
-        "        ) AS frame_data\n" +
+        "        ) AS fd1\n" +
+        "        -- Get second frame and clean it\n" +
+        "        CROSS APPLY (\n" +
+        "            SELECT TOP 1\n" +
+        "                CASE\n" +
+        "                    WHEN CHARINDEX('(', value) > 0\n" +
+        "                    THEN LTRIM(RTRIM(\n" +
+        "                        LEFT(value, CHARINDEX('(', value) - 1) +\n" +
+        "                        SUBSTRING(value, CHARINDEX(')', value) + 1, LEN(value))\n" +
+        "                    ))\n" +
+        "                    ELSE value\n" +
+        "                END AS opening_frame2\n" +
+        "            FROM (\n" +
+        "                SELECT value, ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) AS rn\n" +
+        "                FROM STRING_SPLIT(mps2.frame_scores, ';')\n" +
+        "                WHERE CHARINDEX('-', value) > 0\n" +
+        "            ) x\n" +
+        "            WHERE rn = 2\n" +
+        "        ) AS fd2\n" +
+        "        -- Parse frame 1 scores\n" +
+        "        CROSS APPLY (\n" +
+        "            SELECT\n" +
+        "                TRY_CAST(LTRIM(RTRIM(LEFT(fd1.opening_frame1, CHARINDEX('-', fd1.opening_frame1) - 1))) AS INT) AS frame1_player_score,\n" +
+        "                TRY_CAST(LTRIM(RTRIM(SUBSTRING(fd1.opening_frame1, CHARINDEX('-', fd1.opening_frame1) + 1, 100))) AS INT) AS frame1_opp_score\n" +
+        "        ) AS parsed1\n" +
+        "        -- Parse frame 2 scores\n" +
+        "        CROSS APPLY (\n" +
+        "            SELECT\n" +
+        "                TRY_CAST(LTRIM(RTRIM(LEFT(fd2.opening_frame2, CHARINDEX('-', fd2.opening_frame2) - 1))) AS INT) AS frame2_player_score,\n" +
+        "                TRY_CAST(LTRIM(RTRIM(SUBSTRING(fd2.opening_frame2, CHARINDEX('-', fd2.opening_frame2) + 1, 100))) AS INT) AS frame2_opp_score\n" +
+        "        ) AS parsed2\n" +
         "        WHERE mps2.player_key = :playerKey\n" +
         "          AND m2.winner_key IS NOT NULL\n" +
         "          AND m2.loser_key IS NOT NULL\n" +
         "          AND mps2.frame_scores IS NOT NULL\n" +
         "          AND m2.match_date >= :fromDate\n" +
         "          AND m2.match_date <= :toDate\n" +
-        "    ) AS opening_frame_win_percentage\n" +
-        "\n, " +
-
-        // opening 2
-        "    (\n" +
-        "        SELECT CAST(SUM(CASE \n" +
-        "            WHEN TRY_CAST(LEFT(fd1.opening_frame1, CHARINDEX('-', fd1.opening_frame1) - 1) AS INT) > \n" +
-        "                 TRY_CAST(SUBSTRING(fd1.opening_frame1, CHARINDEX('-', fd1.opening_frame1) + 1, 5) AS INT) \n" +
-        "             AND TRY_CAST(LEFT(fd2.opening_frame2, CHARINDEX('-', fd2.opening_frame2) - 1) AS INT) > \n" +
-        "                 TRY_CAST(SUBSTRING(fd2.opening_frame2, CHARINDEX('-', fd2.opening_frame2) + 1, 5) AS INT) \n" +
-        "            THEN 1 ELSE 0 END) * 100.0 / NULLIF(COUNT(DISTINCT m2.match_key), 0) AS DECIMAL(5,2))\n" +
-        "        FROM match_player_stats mps2\n" +
-        "        JOIN match m2 ON m2.match_key = mps2.match_key\n" +
-        "        JOIN player p2 ON mps2.player_key = p2.player_key\n" +
-        "        CROSS APPLY ( \n" +
-        "            SELECT TOP 1 value AS opening_frame1 \n" +
-        "            FROM STRING_SPLIT(mps2.frame_scores, ';') \n" +
-        "            WHERE CHARINDEX('-', value) > 0 \n" +
-        "        ) AS fd1 \n" +
-        "        CROSS APPLY ( \n" +
-        "            SELECT TOP 1 value AS opening_frame2 \n" +
-        "            FROM ( \n" +
-        "                SELECT value, ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) AS rn \n" +
-        "                FROM STRING_SPLIT(mps2.frame_scores, ';') \n" +
-        "                WHERE CHARINDEX('-', value) > 0 \n" +
-        "            ) x WHERE rn = 2 \n" +
-        "        ) AS fd2 \n" +
-        "        WHERE mps2.player_key = :playerKey \n" +
-        "          AND m2.winner_key IS NOT NULL \n" +
-        "          AND m2.loser_key IS NOT NULL \n" +
-        "          AND mps2.frame_scores IS NOT NULL \n" +
-        "          AND fd1.opening_frame1 IS NOT NULL \n" +
-        "          AND fd2.opening_frame2 IS NOT NULL \n" +
-        "          AND m2.match_date >= :fromDate \n" +
-        "          AND m2.match_date <= :toDate\n" +
+        "          -- Only matches where both frames are present AND successfully parsed\n" +
+        "          AND fd1.opening_frame1 IS NOT NULL\n" +
+        "          AND fd2.opening_frame2 IS NOT NULL\n" +
+        "          AND parsed1.frame1_player_score IS NOT NULL\n" +
+        "          AND parsed1.frame1_opp_score IS NOT NULL\n" +
+        "          AND parsed2.frame2_player_score IS NOT NULL\n" +
+        "          AND parsed2.frame2_opp_score IS NOT NULL\n" +
         "    ) AS opening_2_frames_win_percentage\n" +
         "\n," +
-
-
         //50+ in deciders
         "    (\n" +
         "        SELECT CAST(\n" +
