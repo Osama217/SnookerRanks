@@ -54,61 +54,69 @@ public class PlayerTournamnetStatsServices {
         return rankings;
     }
 
-    public List<PlayerTournamnetStatsDTO> getStats(Integer tournamnetKey,Integer tournamnetStatsKey,String dateFrom,String dateTo) {
-        String sEventSQL = " AND e.tournament_key=" + tournamnetKey + " AND e.event_date>= " + dateFrom + " AND e.event_date<=" + dateTo + " ";
-        List<PlayerTournamnetStatsDTO> statsDTOS =null;
+    public List<PlayerTournamnetStatsDTO> getStats(Integer tournamnetKey, Integer tournamnetStatsKey, String dateFrom,
+            String dateTo) {
+        System.out.println("tournamnetKey:" + tournamnetKey);
+        System.out.println("tournamnetStatsKey:" + tournamnetStatsKey);
+        System.out.println("dateFrom:" + dateFrom);
+        System.out.println("dateTo:" + dateTo);
+
+        String sEventSQL = " AND e.tournament_key=" + tournamnetKey + " AND e.event_date>= " + dateFrom
+                + " AND e.event_date<=" + dateTo + " ";
+        List<PlayerTournamnetStatsDTO> statsDTOS = null;
         switch (tournamnetStatsKey) {
             case 1:
-                statsDTOS =  playerRepository.getPlayerPrizeSummary(tournamnetKey,dateFrom,dateTo);
+                statsDTOS = playerRepository.getPlayerPrizeSummary(tournamnetKey, dateFrom, dateTo);
                 break;
             case 2:
-                statsDTOS = playerRepository.getPlayerApplications(tournamnetKey,dateFrom,dateTo);
+                statsDTOS = playerRepository.getPlayerApplications(tournamnetKey, dateFrom, dateTo);
                 break;
 
             case 11:
-                statsDTOS = playerRepository.getPlayerMatches(tournamnetKey,dateFrom,dateTo);
+                statsDTOS = playerRepository.getPlayerMatches(tournamnetKey, dateFrom, dateTo);
                 break;
 
             case 3:
-                statsDTOS = playerRepository.getPlayerCashes(tournamnetKey,dateFrom,dateTo);
+                statsDTOS = playerRepository.getPlayerCashes(tournamnetKey, dateFrom, dateTo);
                 break;
 
             case 6:
-                statsDTOS = playerRepository.getWinnerAverage(tournamnetKey,dateFrom,dateTo);
+                statsDTOS = playerRepository.getWinnerAverage(tournamnetKey, dateFrom, dateTo);
                 break;
 
             case 7:
-                statsDTOS = playerRepository.getPlayerWins(tournamnetKey,dateFrom,dateTo);
+                statsDTOS = playerRepository.getPlayerWins(tournamnetKey, dateFrom, dateTo);
                 break;
             case 4:
-                statsDTOS = playerRepository.getPlayerCountryStats(tournamnetKey,dateFrom,dateTo);
+                statsDTOS = playerRepository.getPlayerCountryStats(tournamnetKey, dateFrom, dateTo);
                 break;
 
             case 10:
-                statsDTOS = playerRepository.getPlayerSuccessStats(tournamnetKey,dateFrom,dateTo);
+                statsDTOS = playerRepository.getPlayerSuccessStats(tournamnetKey, dateFrom, dateTo);
                 break;
             default:
                 RankText rankText = rankTextRepository.findByRankTextKey(tournamnetStatsKey);
-                if(null != rankText) {
-                    statsDTOS = getMatchStats(rankText.getStatType(), rankText.getField1(), rankText.getField2(), tournamnetKey, dateFrom, dateTo);
+                if (null != rankText) {
+                    statsDTOS = getMatchStats(rankText.getStatType(), rankText.getField1(), rankText.getField2(),
+                            tournamnetKey, dateFrom, dateTo);
                 }
                 break;
-
-
 
         }
         return statsDTOS;
     }
 
-    public List<PlayerTournamnetStatsDTO> getMatchStats(String statType,String field1, String field2,
-                                                        Integer tournamentKey, String dateFrom, String dateTo) {
-        StringBuilder stats =null,temp_stats =null;
+    public List<PlayerTournamnetStatsDTO> getMatchStats(String statType, String field1, String field2,
+            Integer tournamentKey, String dateFrom, String dateTo) {
+        StringBuilder stats = null, temp_stats = null;
         String multiplier = "A".equals(statType) ? "*3" : "";
-        StringBuilder query = new StringBuilder("SELECT p.player_key AS playerKey, p.player_name AS playerName, p.country_name AS countryName, ") ;
+        StringBuilder query = new StringBuilder(
+                "SELECT p.player_key AS playerKey, p.player_name AS playerName, p.country_name AS countryName, ");
         boolean DAP = statType.equals("D") || statType.equals("A") || statType.equals("P");
 
-        if(DAP){
-            stats = new StringBuilder("CONVERT(float, SUM(mps." + field1 + "))" + (!multiplier.isEmpty() ? " * " + multiplier : "") + " / CONVERT(float, SUM(mps." + field2 + ")") ;
+        if (DAP) {
+            stats = new StringBuilder("CONVERT(float, SUM(mps." + field1 + "))"
+                    + (!multiplier.isEmpty() ? " * " + multiplier : "") + " / CONVERT(float, SUM(mps." + field2 + ")");
             temp_stats = new StringBuilder()
                     .append("'(' + CAST(SUM(mps.").append(field1).append(") AS VARCHAR) + '/' + CAST(SUM(mps.")
                     .append(field2).append(") AS VARCHAR) + ') ' + CAST(ROUND((")
@@ -117,24 +125,28 @@ public class PlayerTournamnetStatsServices {
                     .append(") / CONVERT(float, SUM(mps.").append(field2).append("))")
                     .append(statType.equals("P") ? " * 100" : "")
                     .append(", 2) AS VARCHAR ");
-            query.append(" CAST (").append(temp_stats.toString()).append(" )AS VarChar) ").append(statType.equals("P") ? " + '%'" : "");
+            query.append(" CAST (").append(temp_stats.toString()).append(" )AS VarChar) ")
+                    .append(statType.equals("P") ? " + '%'" : "");
 
-
-        }else if (statType.equals("X")){
+        } else if (statType.equals("X")) {
             stats = new StringBuilder("MAX(CAST(mps.").append(field1).append(" AS FLOAT)");
             query.append(" Cast( ").append(stats.toString()).append(" )as varchar) ");
         }
 
         else {
-            stats = new StringBuilder("SUM(CAST(mps.").append(field1).append(" AS FLOAT) ") ;
+            stats = new StringBuilder("SUM(CAST(mps.").append(field1).append(" AS FLOAT) ");
             query.append(" Cast(").append(stats.toString()).append(")AS varchar) ");
         }
-        
-        query.append(" AS stats FROM player p JOIN match_player_stats mps ON p.player_key = mps.player_key JOIN match m ON mps.match_key = m.match_key JOIN event e ON m.event_key = e.event_key WHERE mps.").append(field1).append(" <> -1 ").append("AND e.tournament_key =").append(tournamentKey).append(" AND e.event_date >= '").append(dateFrom).append("' AND e.event_date <= '").append(dateTo).append("' GROUP BY p.player_key, p.player_name, p.country_name  ");
-        if(DAP) {
+
+        query.append(
+                " AS stats FROM player p JOIN match_player_stats mps ON p.player_key = mps.player_key JOIN match m ON mps.match_key = m.match_key JOIN event e ON m.event_key = e.event_key WHERE mps.")
+                .append(field1).append(" <> -1 ").append("AND e.tournament_key =").append(tournamentKey)
+                .append(" AND e.event_date >= '").append(dateFrom).append("' AND e.event_date <= '").append(dateTo)
+                .append("' GROUP BY p.player_key, p.player_name, p.country_name  ");
+        if (DAP) {
             query.append(" HAVING SUM(CAST(mps.").append(field2).append(" AS FLOAT)) > 0 ");
         }
-        if(null != stats)
+        if (null != stats)
             query.append("ORDER BY ").append(stats.toString()).append(" ) DESC");
 
         List<Object[]> results = entityManager.createNativeQuery(query.toString()).getResultList();
@@ -151,6 +163,5 @@ public class PlayerTournamnetStatsServices {
         }
         return dtos;
     }
-
 
 }
