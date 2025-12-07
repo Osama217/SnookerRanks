@@ -385,9 +385,12 @@ public class PlayerStatsRepositoryImpl implements PlayerStatsRepository {
                 .append(") AS frame_data ")
                 .append("WHERE m.match_date >= :dateFrom ")
                 .append("AND m.match_date <= :dateTo ")
-                .append("AND mps.frame_scores IS NOT NULL ")
+                .append("AND mps.frame_scores IS NOT NULL ");
 
-                // ✅ Only include players with >= 20 matches in the same date range
+        // Add tournament, year, and event filters
+        setAdditionalFieldsInQuery(sql, tournament, year, eventKey);
+
+        sql.append("AND mps.player_key IN ( ") // ✅ Only include players with >= 20 matches in the same date range
                 .append("AND mps.player_key IN ( ")
                 .append("    SELECT mps2.player_key ")
                 .append("    FROM match_player_stats mps2 ")
@@ -398,7 +401,6 @@ public class PlayerStatsRepositoryImpl implements PlayerStatsRepository {
                 .append("    GROUP BY mps2.player_key ")
                 .append("    HAVING COUNT(DISTINCT m2.match_key) >= :minMatches ")
                 .append(") ")
-
                 // End subquery
                 .append(") AS frame_stats ")
                 .append("WHERE player_points > opponent_points ")
@@ -454,9 +456,12 @@ public class PlayerStatsRepositoryImpl implements PlayerStatsRepository {
                 .append(") AS frame_data ")
                 .append("WHERE m.match_date >= :dateFrom ")
                 .append("AND m.match_date <= :dateTo ")
-                .append("AND mps.frame_scores IS NOT NULL ")
+                .append("AND mps.frame_scores IS NOT NULL ");
 
-                // ✅ Only include players with >= 20 matches in the same date range
+        // Add tournament, year, and event filters
+        setAdditionalFieldsInQuery(sql, tournament, year, eventKey);
+
+        sql.append("AND mps.player_key IN ( ") // ✅ Only include players with >= 20 matches in the same date range
                 .append("AND mps.player_key IN ( ")
                 .append("    SELECT mps2.player_key ")
                 .append("    FROM match_player_stats mps2 ")
@@ -893,8 +898,12 @@ public class PlayerStatsRepositoryImpl implements PlayerStatsRepository {
                 .append(") AS scores ")
                 .append("WHERE m.match_date >= :dateFrom ")
                 .append("AND m.match_date <= :dateTo ")
-                .append("AND m.winner_key IS NOT NULL ")
-                .append("AND mps.player_key IN ( ")
+                .append("AND m.winner_key IS NOT NULL ");
+
+        // Add tournament, year, and event filters
+        setAdditionalFieldsInQuery(sql, tournament, year, eventKey);
+
+        sql.append("AND mps.player_key IN ( ")
                 .append(" SELECT mps2.player_key ")
                 .append(" FROM match_player_stats mps2 ")
                 .append(" JOIN match m2 ON m2.match_key = mps2.match_key ")
@@ -997,9 +1006,12 @@ public class PlayerStatsRepositoryImpl implements PlayerStatsRepository {
                 .append("AND mps.frame_scores IS NOT NULL ")
                 // Only completed matches
                 .append("AND m.winner_key IS NOT NULL ")
-                .append("AND m.loser_key IS NOT NULL ")
-                // Only players with >= 30 matches
-                .append("AND mps.player_key IN ( ")
+                .append("AND m.loser_key IS NOT NULL ");
+
+        // Add tournament, year, and event filters
+        setAdditionalFieldsInQuery(sql, tournament, year, eventKey);
+
+        sql.append("AND mps.player_key IN ( ") // Only players with >= 30 matches
                 .append("  SELECT mps2.player_key ")
                 .append("  FROM match_player_stats mps2 ")
                 .append("  JOIN match m2 ON m2.match_key = mps2.match_key ")

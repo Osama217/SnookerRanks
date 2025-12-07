@@ -13,7 +13,7 @@ public interface PlayerStatsRepository {
     public final String TOURNAMENT_WC = " AND (e.event_category='WC') ";
     public final String TOURNAMENT_3C = " AND (e.tournament_key IN (1,2,3)) ";
     public final String TOURNAMENT_ALL_RANK = "  AND (e.event_category<>'0' AND e.event_category<>'U' AND e.event_category<>'Q' AND e.event_category<>'Y') ";
-    public final String TOUR_YEAR = "  AND p.player_key IN (SELECT player_key FROM player_pro_card WHERE year= :year  )";
+    public final String TOUR_YEAR = "  AND (YEAR(e.event_date) = :year OR YEAR(e.start_date) = :year OR YEAR(e.end_date) = :year) ";
     public final String TOUR_EVENT = "  AND (p.player_key IN (SELECT player1_key FROM fixture WHERE event_key= :event) OR p.player_key IN (SELECT player2_key FROM fixture WHERE event_key= :event) OR p.player_key IN (SELECT DISTINCT fo.player_key FROM fixture_odds fo JOIN fixture f ON fo.fixture_key=f.fixture_key WHERE f.event_key= :event";
     public final String RANK_KEY_51 = " AND pp.round_no IN (21) ";
     public final String RANK_KEY_52 = " AND pp.round_no IN (21,20) ";
