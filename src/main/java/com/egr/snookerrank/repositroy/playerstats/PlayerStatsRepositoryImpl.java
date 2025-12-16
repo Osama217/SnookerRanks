@@ -88,7 +88,7 @@ public class PlayerStatsRepositoryImpl implements PlayerStatsRepository {
         System.out.println("dateFrom: " + dateFrom);
         System.out.println("dateTo: " + dateTo);
         System.out.println("topLimit: " + topLimit);
-        System.out.println("========================\n");
+        // System.out.println("========================\n");
 
         // new stat types
         if ("%deciding_frames_won".equalsIgnoreCase(statType)) {
