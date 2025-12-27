@@ -8,6 +8,7 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.Query;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
@@ -29,6 +30,7 @@ public class PlayerTournamnetStatsServices {
     @PersistenceContext
     private EntityManager entityManager;
 
+    @Cacheable(value= "rankingsMetaData", key = "'rankingsMetaData'")
     public Map<Integer, String> getRankings() {
         Map<Integer, String> rankings = new LinkedHashMap<>();
 
