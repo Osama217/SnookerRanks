@@ -95,6 +95,7 @@ public class PlayerService {
         return orderOfMeritList;
     }
 
+    @Cacheable(value= "statsMetaData", key = "'statsMetaData'")
     public StatsDTO getStats() {
         StatsDTO statsDTO = null;
         List<Object[]> result = playerRepository.fetchRanks();
@@ -754,6 +755,7 @@ public List<PlayerStats> fetchPlayerStats(LocalDate dDateFrom, LocalDate dDateTo
       return  playerRepository.gettalenetPortaFDIComparison();
     }
 
+    @Cacheable(value = "rankingsMetaData", key = "'rankingsMetaData'")
     public RankingMetaData rankingsMetaData() {
         RankingMetaData rankingMetaData = new RankingMetaData();
         List<Object[]> list =  playerRepository.getRanksForRanking();

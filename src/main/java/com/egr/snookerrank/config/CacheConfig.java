@@ -23,10 +23,10 @@ public class CacheConfig {
 
     @Bean
     public CacheManager cacheManager() {
-        return new LoggingCacheManager("topPlayers", "orderOfMerit", "latestResult");
+        return new LoggingCacheManager("topPlayers", "orderOfMerit", "latestResult","rankingsMetaData","statsMetaData");
     }
 
-    /**
+    /** 
      * Custom CacheManager that logs cache operations
      */
     private static class LoggingCacheManager extends ConcurrentMapCacheManager {
