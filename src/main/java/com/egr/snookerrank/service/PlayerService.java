@@ -15,6 +15,7 @@ import lombok.AllArgsConstructor;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.commons.text.StringEscapeUtils;
 import org.springframework.beans.BeanUtils;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.web.bind.annotation.RequestParam;
 
@@ -36,11 +37,13 @@ public class PlayerService {
     private final PlayerStatsRepository playerStatsRepository;
     private final RankTextRepository rankTextRepository;
 
+    @Cacheable(value = "topPlayers", key = "#count")
     public List<TopPlayersDTO> getTopPlayers(@RequestParam int count) {
+        System.out.println("[DB] Fetching top players from database for count: " + count);
         int limit = (count > 0) ? count : 10;  // Default to 10 if count is invalid
         TopPlayersDTO dto = new TopPlayersDTO();
         AtomicInteger rankCounter = new AtomicInteger(1);
-        return playerRepository.findTopPlayers(count)
+        List<TopPlayersDTO> result = playerRepository.findTopPlayers(count)
                 .stream()
                 .map(obj -> {
                     Object[] row = (Object[]) obj; // Explicit cast to Object[]
@@ -54,9 +57,13 @@ public class PlayerService {
                                             new BigDecimal(((Number) row[3]).doubleValue()).setScale(2, RoundingMode.HALF_UP) : null
                             );
                 }).collect(Collectors.toList());
+        System.out.println("[DB] Successfully fetched " + result.size() + " players from database");
+        return result;
     }
 
+    @Cacheable(value = "orderOfMerit", key = "#monthsBack + '_' + #topCount + '_' + (#excludedPlayers != null ? #excludedPlayers.toString() : 'null')")
     public List<OrderOfMeritDTO> getOrderOfMerit(int monthsBack, int topCount, List<Integer> excludedPlayers) {
+        System.out.println("[DB] Fetching order of merit from database for monthsBack: " + monthsBack + ", topCount: " + topCount + ", excludedPlayers: " + excludedPlayers);
         LocalDate dateTo = LocalDate.now();
         LocalDate dateFrom = dateTo.minusMonths(monthsBack);
         if (excludedPlayers == null || excludedPlayers.isEmpty()) {
@@ -73,7 +80,7 @@ public class PlayerService {
         );
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
-        return result.stream().map(row -> new OrderOfMeritDTO(
+        List<OrderOfMeritDTO> orderOfMeritList = result.stream().map(row -> new OrderOfMeritDTO(
                 (Integer) row[0],  // playerKey
                 (String) row[1],   // playerName
                 (String) row[2],   // countryName
@@ -84,8 +91,11 @@ public class PlayerService {
                 (Integer) row[7],  // totalEvents
                 (Integer) row[8]   // inProgress
         )).collect(Collectors.toList());
+        System.out.println("[DB] Successfully fetched " + orderOfMeritList.size() + " order of merit entries from database");
+        return orderOfMeritList;
     }
 
+    @Cacheable(value= "statsMetaData", key = "'statsMetaData'")
     public StatsDTO getStats() {
         StatsDTO statsDTO = null;
         List<Object[]> result = playerRepository.fetchRanks();
@@ -745,6 +755,7 @@ public List<PlayerStats> fetchPlayerStats(LocalDate dDateFrom, LocalDate dDateTo
       return  playerRepository.gettalenetPortaFDIComparison();
     }
 
+    @Cacheable(value = "rankingsMetaData", key = "'rankingsMetaData'")
     public RankingMetaData rankingsMetaData() {
         RankingMetaData rankingMetaData = new RankingMetaData();
         List<Object[]> list =  playerRepository.getRanksForRanking();
@@ -926,8 +937,12 @@ public List<PlayerStats> playerDetailStats(Integer playerKey, Integer rankKey) {
         }
     }
 
+    @Cacheable(value = "latestResult")
     public List<MatchResultDTO> getLatestResult() {
-         return playerRepository.getLatestResult();
+        System.out.println("[DB] Fetching latest results from database");
+        List<MatchResultDTO> results = playerRepository.getLatestResult();
+        System.out.println("[DB] Successfully fetched " + results.size() + " latest results from database");
+        return results;
     }
 }
 
